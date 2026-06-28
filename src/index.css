@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "DM Sans", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --color-electric: #2563eb;
+  --color-electric-light: #3b82f6;
+  --color-electric-glow: #60a5fa;
+  --color-crimson: #dc2626;
+  --color-crimson-light: #ef4444;
+  --color-surface: #f8fafc;
+  --color-surface-dark: #0f172a;
+}
+
+@layer base {
+  body {
+    @apply font-sans antialiased;
+  }
+}
+
+@layer utilities {
+  .paint-fibers {
+    background-image:
+      radial-gradient(ellipse 80% 50% at 20% 40%, rgba(37, 99, 235, 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse 60% 40% at 80% 20%, rgba(59, 130, 246, 0.06) 0%, transparent 45%),
+      radial-gradient(ellipse 50% 60% at 60% 80%, rgba(96, 165, 250, 0.05) 0%, transparent 50%),
+      linear-gradient(135deg, rgba(37, 99, 235, 0.03) 0%, transparent 40%),
+      linear-gradient(225deg, rgba(59, 130, 246, 0.04) 0%, transparent 35%);
+  }
+
+  .paint-fibers-dark {
+    background-image:
+      radial-gradient(ellipse 80% 50% at 20% 40%, rgba(37, 99, 235, 0.15) 0%, transparent 50%),
+      radial-gradient(ellipse 60% 40% at 80% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 45%),
+      radial-gradient(ellipse 50% 60% at 60% 80%, rgba(96, 165, 250, 0.08) 0%, transparent 50%),
+      linear-gradient(135deg, rgba(37, 99, 235, 0.06) 0%, transparent 40%),
+      linear-gradient(225deg, rgba(59, 130, 246, 0.05) 0%, transparent 35%);
+  }
+
+  .glass-card {
+    @apply backdrop-blur-sm border border-white/20 shadow-lg;
+  }
+
+  .glass-card-dark {
+    @apply backdrop-blur-sm border border-white/10 shadow-lg;
+  }
+}
