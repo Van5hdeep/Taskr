@@ -5,11 +5,14 @@ import {
   Check,
   CheckCircle,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Database,
   LayoutGrid,
   Loader2,
   LogIn,
   LogOut,
+  Menu,
   Moon,
   Plus,
   Pencil,
@@ -27,6 +30,8 @@ import {
 import { supabase } from "./supabaseClient";
 import BorderGlow from "./components/BorderGlow/BorderGlow";
 import { Toaster, toast } from "sonner";
+import { handleChatMessage } from "./chat/handler";
+import { GoogleGenAI } from "@google/genai";
 
 // ─── Custom Alert Modal ────────────────────────────────────────────────────────
 
@@ -68,7 +73,7 @@ const JUDGE_EMAIL = "judge12@gmail.com";
 const JUDGE_PASSWORD = "judge123";
 const RELIABILITY_STORAGE_PREFIX = "tasker_reliability_";
 const TASK_META_PREFIX = "tasker_task_meta_";
-const GEMINI_MODEL = "gemini-2.0-flash";
+const GEMINI_MODEL = "gemini-2.5-flash";
 
 const URGENCY_LEVELS = [
   { id: "urgent", label: "Urgent", score: 9 },
@@ -81,6 +86,22 @@ const QUICK_ACTIONS = [
   { id: "get-started", label: "How do I get started?" },
   { id: "reschedule-critical", label: "Reschedule critical items" },
 ];
+
+const PRIORITY_FILTERS = [
+  { id: "all", label: "All Priorities" },
+  { id: "urgent", label: "Urgent", pillClass: "bg-red-50/90 border-red-200/60 text-red-700 dark:bg-red-950/40 dark:border-red-500/30 dark:text-red-300" },
+  { id: "important", label: "Important", pillClass: "bg-amber-50/90 border-amber-200/60 text-amber-800 dark:bg-amber-950/35 dark:border-amber-500/25 dark:text-amber-300" },
+  { id: "not-important", label: "Not Important", pillClass: "bg-emerald-50/90 border-emerald-200/60 text-emerald-700 dark:bg-emerald-950/35 dark:border-emerald-500/25 dark:text-emerald-300" },
+];
+
+const DATE_FILTERS = [
+  { id: "all", label: "All Dates" },
+  { id: "today", label: "Due Today" },
+  { id: "week", label: "Due Within a Week" },
+  { id: "month", label: "Due Within a Month" },
+];
+
+const CALENDAR_MONTHS_AHEAD = 12;
 
 // ─── Midnight theme tokens ───────────────────────────────────────────────────
 
@@ -249,6 +270,113 @@ async function callGemini(systemInstruction, userText, maxTokens = 256) {
   }
 }
 
+const GEMINI_TOOL_DECLARATIONS = [
+  {
+    name: "createPlaceholderTasks",
+    description: "Creates N number of empty or boilerplate tasks.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        count: { type: "NUMBER", description: "How many placeholder tasks to create." },
+        initialPriority: { type: "STRING", description: "Optional initial priority: Urgent, Important, or Not Important." },
+      },
+      required: ["count"],
+    },
+  },
+  {
+    name: "updateTaskDeadlineByTitle",
+    description: "Modifies the deadline string for a specific task.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        taskTitle: { type: "STRING", description: "Task title to match (exact or close match)." },
+        targetDateISO: { type: "STRING", description: "New target deadline as ISO date or natural text." },
+      },
+      required: ["taskTitle", "targetDateISO"],
+    },
+  },
+  {
+    name: "updateTaskPriorityByTitle",
+    description: "Changes a task's priority level based on color theory parameters.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        taskTitle: { type: "STRING", description: "Task title to match (exact or close match)." },
+        newPriority: { type: "STRING", description: "New priority: Urgent, Important, or Not Important." },
+      },
+      required: ["taskTitle", "newPriority"],
+    },
+  },
+];
+
+async function runGeminiWithToolCalling(userMessage, executeTool, taskSummary) {
+  const apiKey = getGeminiKey();
+  if (!apiKey) return null;
+
+  const systemInstruction = `You are TASKR AI with function-calling.
+Available tools: createPlaceholderTasks, updateTaskDeadlineByTitle, updateTaskPriorityByTitle.
+When user asks to create placeholders, call createPlaceholderTasks with count and optional initialPriority.
+When user asks deadline changes like "tomorrow", call updateTaskDeadlineByTitle.
+When user asks to change a task's urgency/priority, call updateTaskPriorityByTitle.
+Always prefer tool calls for task mutations.
+Current tasks summary: ${JSON.stringify(taskSummary)}`;
+
+  const contents = [{ role: "user", parts: [{ text: userMessage }] }];
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+
+  const aggregatedToolSummaries = [];
+
+  for (let i = 0; i < 4; i++) {
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: systemInstruction }] },
+        contents,
+        tools: [{ functionDeclarations: GEMINI_TOOL_DECLARATIONS }],
+        generationConfig: { maxOutputTokens: 350, temperature: 0.25 },
+      }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const modelParts = data?.candidates?.[0]?.content?.parts ?? [];
+    const functionCalls = modelParts.filter((p) => p.functionCall);
+
+    if (!functionCalls.length) {
+      const text = modelParts.map((p) => p.text).filter(Boolean).join("\n").trim();
+      return {
+        reply: text || (aggregatedToolSummaries.length ? "I've completed the requested task updates." : "Done."),
+        toolSummaries: aggregatedToolSummaries,
+      };
+    }
+
+    contents.push({ role: "model", parts: modelParts });
+    for (const part of functionCalls) {
+      const { name, args } = part.functionCall;
+      const result = await executeTool(name, args || {});
+      aggregatedToolSummaries.push(result.summary);
+      contents.push({
+        role: "user",
+        parts: [{
+          functionResponse: {
+            name,
+            response: { result },
+          },
+        }],
+      });
+    }
+
+    if (aggregatedToolSummaries.length && i === 3) {
+      return {
+        reply: "I've completed the requested task updates.",
+        toolSummaries: aggregatedToolSummaries,
+      };
+    }
+  }
+
+  return null;
+}
+
 async function generateGeminiTitle(description) {
   const prompt =
     "Generate a punchy, highly descriptive 3-5 word title summarizing the following task context. Output ONLY the raw title without quotation marks or conversation.";
@@ -272,6 +400,41 @@ function urgencyLabelFromScore(score) {
   if (score >= 8) return "Urgent";
   if (score >= 5) return "Important";
   return "Not Important";
+}
+
+function normalizePriorityToLevelId(priority) {
+  const p = String(priority || "").toLowerCase().trim();
+  if (p.includes("urgent") || p.includes("red")) return "urgent";
+  if (p.includes("not important") || p.includes("green") || p.includes("low")) return "not-important";
+  return "important";
+}
+
+function resolveDeadlineText(input) {
+  const raw = String(input || "").trim().toLowerCase();
+  const now = new Date();
+  if (!raw) return new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+  if (raw === "tomorrow") {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    d.setHours(9, 0, 0, 0);
+    return d.toISOString();
+  }
+  const parsed = new Date(input);
+  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
+  return new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+}
+
+function findBestTaskByTitle(tasks, title) {
+  const needle = String(title || "").toLowerCase().trim();
+  if (!needle) return null;
+  const exact = tasks.find((t) => t.title.toLowerCase() === needle);
+  if (exact) return exact;
+  const contains = tasks.find((t) => t.title.toLowerCase().includes(needle) || needle.includes(t.title.toLowerCase()));
+  if (contains) return contains;
+  return tasks.find((t) => {
+    const words = needle.split(/\s+/).filter((w) => w.length > 2);
+    return words.some((w) => t.title.toLowerCase().includes(w));
+  }) ?? null;
 }
 
 function ragStickerClass(score, dark) {
@@ -305,6 +468,12 @@ function urgencyBadgeClass(label, dark) {
 function getFirstName(fullName) {
   if (!fullName || typeof fullName !== "string") return "there";
   return fullName.trim().split(/\s+/)[0];
+}
+
+function getUsernameFromEmail(email) {
+  if (!email || typeof email !== "string") return "";
+  const [name] = email.split("@");
+  return name?.trim() ?? "";
 }
 
 function dateKey(d) {
@@ -366,6 +535,40 @@ function toDbSubTasks(subTasks) {
 
 function sortByDeadline(taskList) {
   return [...taskList].sort((a, b) => a.deadline.getTime() - b.deadline.getTime());
+}
+
+function matchesPriorityFilter(task, priorityFilter) {
+  if (priorityFilter === "all") return true;
+  if (priorityFilter === "urgent") return task.urgencyScore >= 8;
+  if (priorityFilter === "important") return task.urgencyScore >= 5 && task.urgencyScore < 8;
+  if (priorityFilter === "not-important") return task.urgencyScore < 5;
+  return true;
+}
+
+function matchesDateFilter(task, dateFilter) {
+  if (dateFilter === "all") return true;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const deadline = new Date(task.deadline);
+  deadline.setHours(0, 0, 0, 0);
+  if (dateFilter === "today") return dateKey(deadline) === dateKey(today);
+  if (dateFilter === "week") {
+    const weekEnd = new Date(today);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+    return deadline >= today && deadline <= weekEnd;
+  }
+  if (dateFilter === "month") {
+    const monthEnd = new Date(today);
+    monthEnd.setMonth(monthEnd.getMonth() + 1);
+    return deadline >= today && deadline <= monthEnd;
+  }
+  return true;
+}
+
+function filterTasks(taskList, priorityFilter, dateFilter) {
+  return taskList.filter(
+    (task) => matchesPriorityFilter(task, priorityFilter) && matchesDateFilter(task, dateFilter)
+  );
 }
 
 function toIsoDeadline(deadlineStr) {
@@ -613,8 +816,8 @@ function fallbackChatIntent(message, tasks) {
   } else {
     const top = getTopPriorityTask(tasks);
     reply = top
-      ? `You have ${tasks.length} sticker(s). Remember to take breaks, but focus on "${top.title}" first.`
-      : "Your board is empty - post a task in the Task Dump.";
+      ? `You currently have ${tasks.length} sticker(s). Your highest-priority task is "${top.title}".`
+      : "I can create placeholder tasks, set deadlines, or update priorities for you. Tell me what you want to do next.";
   }
   return { reply, actions };
 }
@@ -797,38 +1000,40 @@ function AuthScreen({ onAuthenticated, t }) {
 
 // ─── Header ──────────────────────────────────────────────────────────────────
 
-function DashboardHeader({ email, fullName, t, onSignOut, onOpenSettings, activeScreen }) {
+function DashboardHeader({ email, fullName, t, onSignOut }) {
   const initials = (fullName || email || "U").split(/\s+/).map((p) => p[0]).join("").slice(0, 2).toUpperCase();
 
   return (
-    <header className={`flex items-center justify-between border-b px-4 py-4 sm:px-6 lg:px-8 ${t.header}`}>
-      <div className="flex items-center gap-4">
-        <BrandLogo />
-        <button type="button" onClick={() => onOpenSettings(activeScreen === "workspace" ? "settings" : "workspace")} className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium ${t.navBtn}`}>
-          {activeScreen === "workspace" ? <Settings className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
-          {activeScreen === "workspace" ? "Settings" : "Workspace"}
-        </button>
-      </div>
-      {/* Profile dropdown with group hover bridge */}
-      <div className="relative group py-2">
-        <button type="button" className={`flex items-center gap-2.5 rounded-xl border px-3 py-2 shadow-sm ${t.profileBtn}`}>
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-xs font-bold text-white">{initials}</div>
-          <span className={`hidden max-w-[140px] truncate text-sm font-medium sm:inline ${t.textPrimary}`}>{email}</span>
-          <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-hover:rotate-180" />
-        </button>
-        {/* Invisible bridge + dropdown: pt-1 creates hover-safe gap between trigger and menu */}
-        <div className="absolute right-0 top-full z-50 hidden w-64 pt-1 group-hover:block">
-          {/* Extra invisible bridge area to prevent gap-close */}
-          <div className="h-1" />
-          <div className={`overflow-hidden rounded-2xl border shadow-xl ${t.dropdown}`}>
-            <div className={`border-b px-4 py-3 ${t.shell.includes("0a0f24") ? "border-blue-500/20" : "border-zinc-100"}`}>
-              <p className={`text-xs font-semibold uppercase ${t.textMuted}`}>Signed in as</p>
-              <p className={`mt-1 truncate text-sm font-medium ${t.textPrimary}`}>{email}</p>
-            </div>
-            <div className="p-2">
-              <button type="button" onClick={onSignOut} className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold ${t.shell.includes("0a0f24") ? "bg-[#0d1530] text-slate-200 hover:bg-red-950/50 hover:text-red-400" : "bg-zinc-50 text-zinc-700 hover:bg-red-50 hover:text-red-600"}`}>
-                <LogOut className="h-4 w-4" /> Logout
-              </button>
+    <header className={`border-b px-4 py-4 sm:px-6 lg:px-8 ${t.header}`}>
+      <div className="flex h-16 items-center justify-between">
+        <div className="flex h-full shrink-0 items-center">
+          <BrandLogo className="h-full w-auto object-contain max-h-16" />
+        </div>
+        {/* Profile dropdown with group hover bridge */}
+        <div className="relative group py-2">
+          <button type="button" className={`flex items-center gap-2.5 rounded-xl border px-3 py-2 shadow-sm ${t.profileBtn}`}>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-xs font-bold text-white">{initials}</div>
+            <span className={`hidden max-w-[140px] truncate text-sm font-medium sm:inline ${t.textPrimary}`}>{email}</span>
+            <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-hover:rotate-180" />
+          </button>
+          {/* Invisible bridge + dropdown: pt-1 creates hover-safe gap between trigger and menu */}
+          <div className="absolute right-0 top-full z-50 hidden w-64 pt-1 group-hover:block">
+            {/* Extra invisible bridge area to prevent gap-close */}
+            <div className="h-1" />
+            <div className={`overflow-hidden rounded-2xl border shadow-xl ${t.dropdown}`}>
+              <div className={`border-b px-4 py-3 ${t.shell.includes("0a0f24") ? "border-blue-500/20" : "border-zinc-100"}`}>
+                <p className={`text-xs font-semibold uppercase ${t.textMuted}`}>Signed in as</p>
+                <p className={`mt-1 truncate text-sm font-medium ${t.textPrimary}`}>{email}</p>
+              </div>
+              <div className="p-2">
+                <button
+                  type="button"
+                  onClick={onSignOut}
+                  className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold ${t.shell.includes("0a0f24") ? "bg-[#0d1530] text-slate-200 hover:bg-red-950/50 hover:text-red-400" : "bg-zinc-50 text-zinc-700 hover:bg-red-50 hover:text-red-600"}`}
+                >
+                  <LogOut className="h-4 w-4" /> Log Out
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -837,9 +1042,47 @@ function DashboardHeader({ email, fullName, t, onSignOut, onOpenSettings, active
   );
 }
 
+function SidebarMenu({ open, onClose, activeScreen, onNavigate, t, dark }) {
+  return (
+    <>
+      <div
+        className={`fixed inset-0 z-[120] bg-black/40 transition-opacity ${open ? "opacity-100" : "pointer-events-none opacity-0"}`}
+        onClick={onClose}
+      />
+      <aside className={`fixed left-0 top-0 z-[130] h-full w-[280px] transform border-r p-5 transition-transform duration-300 ${open ? "translate-x-0" : "-translate-x-full"} ${dark ? "border-blue-500/20 bg-[#0a0f24]" : "border-zinc-200 bg-white"}`}>
+        <div className="flex items-center justify-between">
+          <h2 className={`text-sm font-bold uppercase tracking-wider ${t.textPrimary}`}>Menu Options</h2>
+          <button type="button" onClick={onClose} className={`rounded-lg p-2 ${t.navBtn}`} aria-label="Close menu">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <nav className="mt-8 space-y-2">
+          <button
+            type="button"
+            onClick={() => { onNavigate("workspace"); onClose(); }}
+            className={`flex w-full items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${activeScreen === "workspace" ? "border-blue-500/40 bg-blue-500/10 text-blue-500" : t.navBtn}`}
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Workspace
+          </button>
+          <button
+            type="button"
+            onClick={() => { onNavigate("settings"); onClose(); }}
+            className={`flex w-full items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${activeScreen === "settings" ? "border-blue-500/40 bg-blue-500/10 text-blue-500" : t.navBtn}`}
+          >
+            <Settings className="h-4 w-4" />
+            Settings
+          </button>
+        </nav>
+      </aside>
+    </>
+  );
+}
+
 // ─── Panic Dump (with pre-save subtask builder) ────────────────────────────────
 
 function PanicDump({ t, onSubmit, isSubmitting, selectedDate }) {
+  const [manualTitle, setManualTitle] = useState("");
   const [description, setDescription] = useState("");
   const [deadline, setDeadline] = useState("");
 
@@ -874,7 +1117,8 @@ function PanicDump({ t, onSubmit, isSubmitting, selectedDate }) {
     e.preventDefault();
     if (!description.trim() || isSubmitting) return;
     try {
-      await onSubmit(description.trim(), deadline, urgencyLevel, pendingSubTasks);
+      await onSubmit(manualTitle.trim(), description.trim(), deadline, urgencyLevel, pendingSubTasks);
+      setManualTitle("");
       setDescription("");
       setDeadline("");
       setUrgencyLevel("important");
@@ -887,6 +1131,16 @@ function PanicDump({ t, onSubmit, isSubmitting, selectedDate }) {
     <section className={`rounded-2xl p-5 ${t.card}`}>
       <h2 className={`text-sm font-bold ${t.textPrimary}`}>Task Dump</h2>
       <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+        <div>
+          <label className={`mb-1.5 block text-xs font-semibold uppercase ${t.textMuted}`}>Task Title (optional)</label>
+          <input
+            type="text"
+            value={manualTitle}
+            onChange={(e) => setManualTitle(e.target.value)}
+            placeholder="Type a custom title or leave blank for smart title"
+            className={`w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:ring-2 ${t.input}`}
+          />
+        </div>
         <div>
           <label className={`mb-1.5 block text-xs font-semibold uppercase ${t.textMuted}`}>Task Description</label>
           <textarea rows={4} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Dump everything you need to get done…" className={`w-full resize-none rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2 ${t.input}`} />
@@ -1042,86 +1296,234 @@ function ConsistencyBoard({ tasks, dark, t }) {
 
 // ─── Calendar ──────────────────────────────────────────────────────────────────
 
-function CalendarGrid({ tasks, t, dark, onDayClick }) {
-  const today = new Date();
-  const currentMonth = today.getMonth();
-  const currentYear = today.getFullYear();
-  
-  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-  const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay(); // 0 is Sunday
-  
-  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  const todayDateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+function buildMonthDays(year, month) {
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayOfMonth = new Date(year, month, 1).getDay();
   const days = [];
-  for (let i = 0; i < firstDayOfMonth; i++) {
-    days.push(null);
-  }
+  for (let i = 0; i < firstDayOfMonth; i++) days.push(null);
   for (let i = 1; i <= daysInMonth; i++) {
-    const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(i).padStart(2, "0")}`;
     days.push({ day: i, dateStr });
   }
-  
+  return days;
+}
+
+function MonthCalendar({ year, month, tasks, dark, t, onDayClick, todayDateStr }) {
+  const days = buildMonthDays(year, month);
+
+  return (
+    <div className="grid grid-cols-7 gap-px overflow-hidden rounded-xl border bg-slate-200 dark:bg-[#161f42]/40 dark:border-blue-500/10 border-slate-200">
+      {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+        <div key={day} className={`p-2 text-center text-[10px] font-bold uppercase tracking-wider ${dark ? "bg-[#0d1530] text-slate-400" : "bg-slate-50 text-slate-500"}`}>
+          {day}
+        </div>
+      ))}
+      {days.map((d, idx) => {
+        if (!d) return <div key={`empty-${idx}`} className={dark ? "bg-[#161f42]/40" : "bg-white"} />;
+
+        const safeTasksArray = Array.isArray(tasks) ? tasks.filter(Boolean) : [];
+        const dayTasks = safeTasksArray.filter((task) => {
+          try {
+            if (!task || !task.deadline) return false;
+            const taskDateStr = new Date(task.deadline).toISOString().split("T")[0];
+            return taskDateStr === d.dateStr;
+          } catch {
+            return false;
+          }
+        });
+        const isToday = d.dateStr === todayDateStr;
+        const bgClass = isToday
+          ? dark ? "bg-blue-900/30 text-blue-100" : "bg-blue-50 text-blue-900"
+          : dark ? "bg-[#161f42]/40 text-blue-100" : "bg-white text-slate-700";
+
+        return (
+          <div
+            key={d.dateStr}
+            onClick={() => onDayClick(d.dateStr)}
+            className={`min-h-[100px] p-1.5 transition-colors cursor-pointer hover:bg-blue-500/10 ${bgClass} relative group/cell ${isToday ? "ring-inset ring-2 ring-blue-500 z-10" : ""}`}
+          >
+            <div className={`text-xs font-semibold mb-1 px-1 ${isToday ? "text-blue-600 dark:text-blue-400" : dark ? "opacity-70" : "text-slate-500"}`}>{d.day}</div>
+            <div className="flex flex-col gap-1">
+              {dayTasks.map((task) => (
+                <div key={task.id} className="group/pill relative">
+                  <div className={`truncate rounded px-1.5 py-0.5 text-[10px] font-bold ${urgencyBadgeClass(task.urgencyLabel, dark)}`}>
+                    {task.title}
+                  </div>
+                  <div className={`absolute bottom-full left-1/2 z-[100] mb-2 hidden w-48 -translate-x-1/2 rounded-lg p-2 text-xs shadow-xl group-hover/pill:block ${t.dropdown}`}>
+                    <p className={`line-clamp-4 ${t.textMuted}`}>{task.rawInput}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function CalendarGrid({ tasks, t, dark, onDayClick }) {
+  const today = useMemo(() => new Date(), []);
+  const baseMonthRef = useRef(new Date(today.getFullYear(), today.getMonth(), 1));
+  const todayDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const scrollRef = useRef(null);
+  const monthRefs = useRef([]);
+  const [renderedMonthCount, setRenderedMonthCount] = useState(CALENDAR_MONTHS_AHEAD + 1);
+  const [activeMonthIndex, setActiveMonthIndex] = useState(0);
+
+  const months = useMemo(() => {
+    const list = [];
+    for (let i = 0; i < renderedMonthCount; i++) {
+      const d = new Date(baseMonthRef.current.getFullYear(), baseMonthRef.current.getMonth() + i, 1);
+      list.push({ year: d.getFullYear(), month: d.getMonth(), index: i });
+    }
+    return list;
+  }, [renderedMonthCount]);
+
+  const scrollToMonth = useCallback((index) => {
+    const clamped = Math.max(0, Math.min(index, months.length - 1));
+    setActiveMonthIndex(clamped);
+    monthRefs.current[clamped]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [months.length]);
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const onScroll = () => {
+      const containerTop = container.getBoundingClientRect().top;
+      let nearest = activeMonthIndex;
+      let nearestDistance = Infinity;
+
+      monthRefs.current.forEach((node, idx) => {
+        if (!node) return;
+        const distance = Math.abs(node.getBoundingClientRect().top - containerTop - 8);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearest = idx;
+        }
+      });
+
+      if (nearest !== activeMonthIndex) setActiveMonthIndex(nearest);
+
+      const closeToBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 120;
+      if (closeToBottom) setRenderedMonthCount((count) => count + 6);
+    };
+
+    container.addEventListener("scroll", onScroll, { passive: true });
+    return () => container.removeEventListener("scroll", onScroll);
+  }, [activeMonthIndex]);
+
+  const activeMonth = months[activeMonthIndex];
+
   return (
     <section className={`mt-6 rounded-2xl p-5 ${t.card}`}>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className={`text-sm font-bold ${t.textPrimary}`}>Calendar View</h2>
-        <span className={`text-xs font-bold uppercase tracking-widest text-blue-500`}>
-          {monthNames[currentMonth]} {today.getDate()}, {currentYear}
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => scrollToMonth(activeMonthIndex - 1)}
+            disabled={activeMonthIndex === 0}
+            className={`rounded-lg p-1.5 transition-colors disabled:opacity-30 ${dark ? "hover:bg-blue-500/10 text-blue-300" : "hover:bg-blue-50 text-blue-600"}`}
+            aria-label="Previous month"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className={`min-w-[140px] text-center text-xs font-bold uppercase tracking-widest text-blue-500`}>
+            {MONTH_NAMES[activeMonth.month]} {activeMonth.year}
+          </span>
+          <button
+            type="button"
+            onClick={() => scrollToMonth(activeMonthIndex + 1)}
+            disabled={activeMonthIndex >= months.length - 1}
+            className={`rounded-lg p-1.5 transition-colors disabled:opacity-30 ${dark ? "hover:bg-blue-500/10 text-blue-300" : "hover:bg-blue-50 text-blue-600"}`}
+            aria-label="Next month"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
       </div>
-      <div className="grid grid-cols-7 gap-px overflow-hidden rounded-xl border bg-slate-200 dark:bg-[#161f42]/40 dark:border-blue-500/10 border-slate-200">
-        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-          <div key={day} className={`p-2 text-center text-[10px] font-bold uppercase tracking-wider ${dark ? "bg-[#0d1530] text-slate-400" : "bg-slate-50 text-slate-500"}`}>
-            {day}
+      <div ref={scrollRef} className="max-h-[450px] space-y-6 overflow-y-auto scrollbar-thin pr-1">
+        {months.map(({ year, month, index }) => (
+          <div
+            key={`${year}-${month}`}
+            ref={(el) => { monthRefs.current[index] = el; }}
+            className="scroll-mt-2"
+          >
+            <h3 className={`mb-2 text-xs font-bold uppercase tracking-wider ${t.textMuted}`}>
+              {MONTH_NAMES[month]} {year}
+            </h3>
+            <MonthCalendar
+              year={year}
+              month={month}
+              tasks={tasks}
+              dark={dark}
+              t={t}
+              onDayClick={onDayClick}
+              todayDateStr={todayDateStr}
+            />
           </div>
         ))}
-        {days.map((d, idx) => {
-          if (!d) return <div key={`empty-${idx}`} className={dark ? "bg-[#161f42]/40" : "bg-white"} />;
-          
-          const safeTasksArray = Array.isArray(tasks) ? tasks.filter(Boolean) : [];
-          const dayTasks = safeTasksArray.filter(task => {
-            try {
-              if (!task || !task.deadline) return false;
-              const taskDateStr = task?.deadline ? new Date(task.deadline).toISOString().split('T')[0] : '';
-              return taskDateStr === d.dateStr;
-            } catch (err) {
-              return false;
-            }
-          });
-          const isToday = d.dateStr === todayDateStr;
-          const bgClass = isToday 
-            ? (dark ? "bg-blue-900/30 text-blue-100" : "bg-blue-50 text-blue-900")
-            : (dark ? "bg-[#161f42]/40 text-blue-100" : "bg-white text-slate-700");
-          
-          return (
-            <div 
-              key={d.dateStr} 
-              onClick={() => onDayClick(d.dateStr)}
-              className={`min-h-[100px] p-1.5 transition-colors cursor-pointer hover:bg-blue-500/10 ${bgClass} relative group/cell ${isToday ? "ring-inset ring-2 ring-blue-500 z-10" : ""}`}
-            >
-              <div className={`text-xs font-semibold mb-1 px-1 ${isToday ? "text-blue-600 dark:text-blue-400" : (dark ? "opacity-70" : "text-slate-500")}`}>{d.day}</div>
-              <div className="flex flex-col gap-1">
-                {dayTasks.map(task => (
-                  <div key={task.id} className="group/pill relative">
-                    <div className={`truncate rounded px-1.5 py-0.5 text-[10px] font-bold ${urgencyBadgeClass(task.urgencyLabel, dark)}`}>
-                      {task.title}
-                    </div>
-                    <div className={`absolute bottom-full left-1/2 z-[100] mb-2 hidden w-48 -translate-x-1/2 rounded-lg p-2 text-xs shadow-xl group-hover/pill:block ${t.dropdown}`}>
-                      <p className={`line-clamp-4 ${t.textMuted}`}>{task.rawInput}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
       </div>
     </section>
   );
 }
 
 // ─── Stickers ──────────────────────────────────────────────────────────────────
+
+function TaskFilterBar({ priorityFilter, dateFilter, onPriorityChange, onDateChange, t, dark }) {
+  const inactivePill = dark
+    ? "border-blue-500/15 bg-[#161f42]/40 text-slate-400 hover:border-blue-500/30 hover:text-slate-200"
+    : "border-slate-200 bg-white text-slate-500 hover:border-blue-200 hover:text-slate-700";
+
+  return (
+    <div className={`mb-4 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-2xl border px-4 py-3 ${dark ? "border-blue-500/15 bg-[#0d1530]/40" : "border-slate-200/80 bg-white/60"}`}>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`mr-1 text-[10px] font-bold uppercase tracking-wider ${t.textMuted}`}>Priority</span>
+        {PRIORITY_FILTERS.map((filter) => {
+          const isActive = priorityFilter === filter.id;
+          const activeClass = filter.pillClass
+            ? `${filter.pillClass} border font-semibold ring-2 ring-blue-500/30`
+            : `${dark ? "bg-blue-600/20 border-blue-500/40 text-blue-300" : "bg-blue-50 border-blue-200 text-blue-700"} border font-semibold ring-2 ring-blue-500/30`;
+          return (
+            <button
+              key={filter.id}
+              type="button"
+              onClick={() => onPriorityChange(filter.id)}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition-all ${isActive ? activeClass : inactivePill}`}
+            >
+              {filter.label}
+            </button>
+          );
+        })}
+      </div>
+      <div className={`hidden h-5 w-px sm:block ${dark ? "bg-blue-500/15" : "bg-slate-200"}`} />
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`mr-1 text-[10px] font-bold uppercase tracking-wider ${t.textMuted}`}>Date</span>
+        {DATE_FILTERS.map((filter) => {
+          const isActive = dateFilter === filter.id;
+          return (
+            <button
+              key={filter.id}
+              type="button"
+              onClick={() => onDateChange(filter.id)}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition-all ${
+                isActive
+                  ? `${dark ? "bg-blue-600/20 border-blue-500/40 text-blue-300" : "bg-blue-50 border-blue-200 text-blue-700"} font-semibold ring-2 ring-blue-500/30`
+                  : inactivePill
+              }`}
+            >
+              {filter.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function StickerCard({ task, dark, t, onToggleSubTask, onDelete, onEdit, isDeleting, currentTime }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -1145,7 +1547,7 @@ function StickerCard({ task, dark, t, onToggleSubTask, onDelete, onEdit, isDelet
   };
 
   return (
-    <article className={`animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out group relative flex min-h-[220px] flex-col rounded-2xl p-4 shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg ${ragStickerClass(task.urgencyScore, dark)} ${isOvertime ? "border-2 border-red-500" : ""}`}>
+    <article className={`animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out group relative flex h-[280px] w-full flex-col rounded-2xl p-4 shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg ${ragStickerClass(task.urgencyScore, dark)} ${isOvertime ? "border-2 border-red-500" : ""}`}>
       
       <div className="absolute top-3 right-3 flex gap-1 opacity-0 transition-all group-hover:opacity-100 z-10">
         {!isEditing && (
@@ -1224,7 +1626,23 @@ function StickerCard({ task, dark, t, onToggleSubTask, onDelete, onEdit, isDelet
   );
 }
 
-function StickerGrid({ tasks, t, dark, isLoading, deletingTaskId, onToggleSubTask, onDelete, onEdit, currentTime }) {
+function StickerGrid({ tasks, t, dark, isLoading, deletingTaskId, onToggleSubTask, onDelete, onEdit, currentTime, hasActiveFilters }) {
+  const stickerScrollRef = useRef(null);
+
+  useEffect(() => {
+    const container = stickerScrollRef.current;
+    if (!container) return;
+
+    const handleWheel = (event) => {
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      event.preventDefault();
+      container.scrollLeft += event.deltaY;
+    };
+
+    container.addEventListener("wheel", handleWheel, { passive: false });
+    return () => container.removeEventListener("wheel", handleWheel);
+  }, []);
+
   if (isLoading && !tasks.length) {
     return (
       <div className={`flex flex-col items-center justify-center rounded-2xl border py-20 ${t.card}`}>
@@ -1236,14 +1654,21 @@ function StickerGrid({ tasks, t, dark, isLoading, deletingTaskId, onToggleSubTas
   if (!tasks.length) {
     return (
       <div className={`flex flex-col items-center justify-center rounded-2xl border border-dashed py-20 ${t.cardMuted}`}>
-        <p className={`text-sm font-semibold ${t.textPrimary}`}>No stickers yet</p>
+        <p className={`text-sm font-semibold ${t.textPrimary}`}>
+          {hasActiveFilters ? "No tasks match your filters" : "No stickers yet"}
+        </p>
+        {hasActiveFilters && (
+          <p className={`mt-1 text-xs ${t.textMuted}`}>Try adjusting the priority or date filters above</p>
+        )}
       </div>
     );
   }
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <div ref={stickerScrollRef} className="flex flex-row gap-4 overflow-x-auto whitespace-nowrap scrollbar-thin pb-2">
       {tasks.map((task) => (
-        <StickerCard key={task.id} task={task} dark={dark} t={t} onToggleSubTask={onToggleSubTask} onDelete={onDelete} onEdit={onEdit} isDeleting={deletingTaskId === task.id} currentTime={currentTime} />
+        <div key={task.id} className="inline-block w-[300px] shrink-0 align-top">
+          <StickerCard task={task} dark={dark} t={t} onToggleSubTask={onToggleSubTask} onDelete={onDelete} onEdit={onEdit} isDeleting={deletingTaskId === task.id} currentTime={currentTime} />
+        </div>
       ))}
     </div>
   );
@@ -1327,14 +1752,14 @@ function SettingsScreen({ dark, setDark, t, onResetAll, isResetting, dbStatus, u
 
 // ─── AI drawer ─────────────────────────────────────────────────────────────────
 
-function AiAssistantDrawer({ tasks, t, dark, onExecuteActions }) {
+function AiAssistantDrawer({ tasks, t, dark, onExecuteActions, onRunAgent }) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
   const [messages, setMessages] = useState([{
     id: "welcome",
     role: "assistant",
-    text: "I'm your Tasker copilot with live database authority. Ask me to prioritize, delete, or change urgency on any sticker.",
+    text: "I am your Autonomous Task OS. You can ask me to organize, bulk-create, or mutate any tasks natively without delay.",
   }]);
   const feedRef = useRef(null);
 
@@ -1350,53 +1775,87 @@ function AiAssistantDrawer({ tasks, t, dark, onExecuteActions }) {
     push("user", trimmed);
     setInput("");
     setThinking(true);
-    const { reply, actions } = await processAssistantMessage(trimmed, tasks);
-    let finalReply = reply;
-    if (actions.length) finalReply = `${reply}\n\n${await onExecuteActions(actions)}`;
+    let finalReply = "";
+    if (onRunAgent) {
+      const result = await onRunAgent(trimmed);
+      finalReply = result?.text || (typeof result === "string" ? result : "Operations completed successfully.");
+      if (result?.metrics) {
+        push("metrics", result.metrics);
+      }
+    } else {
+      const { reply, actions } = await processAssistantMessage(trimmed, tasks);
+      finalReply = reply;
+      if (actions.length) finalReply = `${reply}\n\n${await onExecuteActions(actions)}`;
+    }
     push("assistant", finalReply);
     setThinking(false);
   };
 
   return (
     <>
-      <button type="button" onClick={() => setOpen((v) => !v)} className={`fixed right-5 bottom-5 z-[70] flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg ring-4 ring-blue-400/30 hover:bg-blue-700 ${!open ? "animate-pulse" : ""}`}>
-        {open ? <X className="h-5 w-5" /> : <Sparkles className="h-5 w-5" />}
+      <button type="button" onClick={() => setOpen((v) => !v)} className={`fixed right-6 bottom-6 z-[70] flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-xl ring-4 ring-blue-500/20 transition-all duration-300 hover:scale-105 hover:bg-blue-700 ${!open ? "animate-pulse" : ""}`}>
+        {open ? <X className="h-6 w-6" /> : <Sparkles className="h-6 w-6" />}
       </button>
-      <div className={`fixed right-5 bottom-24 z-[70] flex w-[min(100vw-2.5rem,400px)] flex-col overflow-hidden rounded-2xl border shadow-2xl transition-all duration-300 ${t.chatPanel} ${open ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0"}`} style={{ maxHeight: "min(72vh, 540px)" }}>
-        <div className={`flex items-center justify-between border-b px-4 py-3 ${dark ? "border-blue-500/20 bg-[#0d1530]/80" : "border-zinc-100 bg-zinc-50"}`}>
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white"><Sparkles className="h-4 w-4" /></div>
+      <div className={`fixed right-6 bottom-24 z-[70] flex w-[min(100vw-3rem,420px)] flex-col overflow-hidden rounded-3xl border shadow-2xl transition-all duration-300 backdrop-blur-2xl ${dark ? "border-white/10 bg-slate-900/70 shadow-blue-900/10" : "border-black/5 bg-white/70 shadow-slate-300/40"} ${open ? "translate-y-0 opacity-100 scale-100" : "pointer-events-none translate-y-8 opacity-0 scale-95"}`} style={{ maxHeight: "min(75vh, 600px)" }}>
+        <div className={`flex items-center justify-between border-b px-5 py-4 ${dark ? "border-white/10" : "border-black/5"}`}>
+          <div className="flex items-center gap-3">
+            <div className={`flex h-10 w-10 items-center justify-center rounded-xl shadow-inner ${dark ? "bg-blue-500/20 text-blue-400" : "bg-blue-50 text-blue-600"}`}><Sparkles className="h-5 w-5" /></div>
             <div>
-              <p className={`text-sm font-bold ${t.textPrimary}`}>Tasker AI</p>
-              <p className={`text-[10px] ${t.textMuted}`}>{tasks.length} stickers · mutating</p>
+              <p className={`text-[15px] font-semibold tracking-tight ${t.textPrimary}`}>TASKR Copilot</p>
+              <p className={`text-[10px] font-bold tracking-wider uppercase opacity-60 ${t.textPrimary}`}>Autonomous OS</p>
             </div>
           </div>
-          <button type="button" onClick={() => setOpen(false)}><X className="h-4 w-4 text-slate-400" /></button>
+          <button type="button" onClick={() => setOpen(false)} className={`rounded-full p-2 transition-colors hover:bg-black/5 dark:hover:bg-white/10`}><X className="h-4 w-4 opacity-70" /></button>
         </div>
-        <div className={`flex flex-wrap gap-1.5 border-b px-3 py-2 ${dark ? "border-blue-500/15" : "border-zinc-100"}`}>
+        <div className={`flex flex-wrap gap-2 border-b px-5 py-3 ${dark ? "border-white/5" : "border-black/5"}`}>
           {QUICK_ACTIONS.map((a) => (
-            <button key={a.id} type="button" onClick={() => runQuery(a.label)} disabled={thinking} className="rounded-full border border-blue-500/20 bg-blue-500/10 px-2.5 py-1 text-[10px] font-semibold text-blue-600 dark:text-blue-300 disabled:opacity-50">
+            <button key={a.id} type="button" onClick={() => runQuery(a.label)} disabled={thinking} className={`rounded-xl border px-3 py-1.5 text-[11px] font-semibold transition-colors disabled:opacity-50 ${dark ? "border-blue-500/20 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20" : "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"}`}>
               {a.label}
             </button>
           ))}
         </div>
-        <div ref={feedRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
-          {messages.map((msg) => (
-            <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[90%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-xs leading-relaxed ${msg.role === "user" ? "bg-blue-600 text-white" : t.chatBubble}`}>{msg.text}</div>
-            </div>
-          ))}
+        <div ref={feedRef} className="flex-1 space-y-4 overflow-y-auto px-5 py-4 scroll-smooth">
+          {messages.map((msg) => {
+            if (msg.role === "metrics") {
+              const { geminiCalls, toolCalls, executionTimeMs } = msg.text;
+              const saved = (toolCalls > 0 && geminiCalls === 0) ? "Local Router (0 API)" : null;
+              return (
+                <div key={msg.id} className="flex justify-center my-1">
+                  <div className={`rounded-lg px-3 py-1 text-[10px] font-mono border shadow-sm flex items-center gap-2 ${dark ? "bg-slate-800/50 border-white/5 text-slate-400" : "bg-white/50 border-black/5 text-slate-500"}`}>
+                    <span>⏱ {executionTimeMs}ms</span>
+                    <span>•</span>
+                    <span className={saved ? "text-green-500 font-bold" : ""}>🤖 {geminiCalls} API</span>
+                    <span>•</span>
+                    <span>🛠 {toolCalls} Tools</span>
+                    {saved && <><span className="text-green-500">•</span><span className="text-green-500 font-bold">{saved}</span></>}
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-[13px] leading-relaxed shadow-sm ${msg.role === "user" ? "bg-blue-600 text-white rounded-br-sm" : dark ? "bg-slate-800/90 text-slate-200 border border-white/10 rounded-bl-sm" : "bg-white text-slate-800 border border-slate-200 rounded-bl-sm"}`}>
+                  {msg.text}
+                </div>
+              </div>
+            );
+          })}
           {thinking && (
             <div className="flex justify-start">
-              <div className={`flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs ${t.chatBubble}`}>
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500" /> Analyzing & executing…
+              <div className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-[13px] font-medium shadow-sm rounded-bl-sm ${dark ? "bg-slate-800/90 border-white/10 text-blue-400" : "bg-white border-slate-200 text-blue-600"}`}>
+                <div className="flex gap-1 items-center">
+                  <span className="h-2 w-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: "0ms" }}></span>
+                  <span className="h-2 w-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: "150ms" }}></span>
+                  <span className="h-2 w-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: "300ms" }}></span>
+                </div>
+                Processing Intent...
               </div>
             </div>
           )}
         </div>
-        <form onSubmit={(e) => { e.preventDefault(); runQuery(input); }} className={`flex items-center gap-2 border-t p-3 ${dark ? "border-blue-500/15" : "border-zinc-100"}`}>
-          <input type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder='e.g. "Remove my urgent task"' disabled={thinking} className={`flex-1 rounded-xl border px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500/30 disabled:opacity-50 ${t.input}`} />
-          <button type="submit" disabled={!input.trim() || thinking} className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40"><Send className="h-4 w-4" /></button>
+        <form onSubmit={(e) => { e.preventDefault(); runQuery(input); }} className={`flex items-center gap-2 border-t p-4 ${dark ? "border-white/10" : "border-black/5"}`}>
+          <input type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder='e.g. "Create 20 placeholder tasks"' disabled={thinking} className={`flex-1 rounded-xl border px-4 py-3 text-[13px] shadow-sm outline-none transition-all focus:ring-2 focus:ring-blue-500/30 disabled:opacity-50 ${dark ? "bg-slate-900/50 border-white/10 text-white placeholder-slate-500" : "bg-white/50 border-black/10 text-slate-900 placeholder-slate-400"}`} />
+          <button type="submit" disabled={!input.trim() || thinking} className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md transition-colors hover:bg-blue-700 disabled:opacity-40"><Send className="h-4 w-4" /></button>
         </form>
       </div>
     </>
@@ -1417,12 +1876,15 @@ export default function App() {
   const [deletingTaskId, setDeletingTaskId] = useState(null);
   const [error, setError] = useState(null);
   const [selectedDate, setSelectedDate] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("all");
   const [reliabilityStore, setReliabilityStore] = useState({});
   const [dbStatus, setDbStatus] = useState("checking");
   const [sessionStart] = useState(() => Date.now());
   const [uptime, setUptime] = useState("00:00:00");
   const [alertConfig, setAlertConfig] = useState(null);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   
   const tasksRef = useRef(tasks);
   useEffect(() => {
@@ -1444,7 +1906,12 @@ export default function App() {
   const userId = session?.user?.id;
   const email = session?.user?.email ?? "";
   const fullName = session?.user?.user_metadata?.full_name ?? "";
-  const firstName = getFirstName(fullName);
+  const username = getUsernameFromEmail(email) || getFirstName(fullName);
+  const filteredTasks = useMemo(
+    () => sortByDeadline(filterTasks(tasks, priorityFilter, dateFilter)),
+    [tasks, priorityFilter, dateFilter]
+  );
+  const hasActiveFilters = priorityFilter !== "all" || dateFilter !== "all";
 
   const fetchTasks = useCallback(async () => {
     if (!userId) return;
@@ -1560,31 +2027,29 @@ export default function App() {
     setActiveScreen("workspace");
   };
 
-  const handleCreateTask = useCallback(async (rawInput, deadlineStr, urgencyLevelId, userSubTasks = []) => {
+  const handleCreateTask = useCallback(async (manualTitle, rawInput, deadlineStr, urgencyLevelId, userSubTasks = []) => {
     if (!userId) return;
     setIsSubmitting(true);
     setError(null);
     try {
-      let smartTitle = "";
-      try {
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY;
-        if (apiKey) {
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-          const apiResponse = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: "Create a catchy 2-3 word title explaining this task context. Do not include quotes: " + rawInput }] }]
-            })
-          });
-          const data = await apiResponse.json();
-          const extractedText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (extractedText && extractedText.trim()) {
-            smartTitle = extractedText.trim().replace(/['"]+/g, '').replace(/[#*]/g, '');
+      let smartTitle = manualTitle;
+      if (!smartTitle) {
+        try {
+          const apiKey = getGeminiKey();
+          if (apiKey) {
+            const ai = new GoogleGenAI({ apiKey });
+            const response = await ai.models.generateContent({
+              model: "gemini-2.5-flash",
+              contents: [{ role: "user", parts: [{ text: "Create a catchy 2-3 word title explaining this task context. Do not include quotes: " + rawInput }] }]
+            });
+            const extractedText = response?.text;
+            if (extractedText && extractedText.trim()) {
+              smartTitle = extractedText.trim().replace(/['"]+/g, "").replace(/[#*]/g, "");
+            }
           }
+        } catch (err) {
+          console.warn("Gemini offline, engaging local smart extraction engine...", err);
         }
-      } catch (err) {
-        console.warn("Gemini offline, engaging local smart extraction engine...", err);
       }
 
       if (!smartTitle || smartTitle.toLowerCase() === "new task") {
@@ -1837,6 +2302,45 @@ export default function App() {
     return summaries.join("\n") || "Actions completed.";
   }, [tasks, userId]);
 
+  const handleAgentMessage = useCallback(async (message) => {
+    if (!userId) return "Please sign in first.";
+    const taskSummary = tasksRef.current.map((t) => ({
+      id: t.id,
+      title: t.title,
+      priority: t.urgencyLabel,
+      deadline: t.deadline.toISOString(),
+      isCompleted: t.isCompleted,
+    }));
+
+    const log = {
+      info: (...args) => console.info(...args),
+      warn: (...args) => console.warn(...args),
+      error: (...args) => console.error(...args),
+    };
+
+    const result = await handleChatMessage({
+      apiKey: getGeminiKey(),
+      model: GEMINI_MODEL,
+      userId,
+      userInput: message,
+      taskSummary,
+      logger: log,
+    });
+
+    if (result?.toolResults?.some((r) => r.ok)) {
+      await fetchTasks();
+      const successful = result.toolResults.filter((r) => r.ok).length;
+      toast.success(`AI Agent executed ${successful} tool call${successful > 1 ? "s" : ""}.`);
+    }
+
+    const failed = result?.toolResults?.filter((r) => !r.ok) ?? [];
+    if (failed.length) {
+      toast.error(`AI Agent hit ${failed.length} tool error${failed.length > 1 ? "s" : ""}.`);
+    }
+
+    return result || { text: "I could not complete that request." };
+  }, [fetchTasks, userId]);
+
   const handleRescheduleCritical = useCallback(async () => {
     if (!userId) return "Not signed in.";
     const urgent = tasks.filter((tk) => tk.urgencyScore >= 8 && !tk.isCompleted);
@@ -1879,7 +2383,15 @@ export default function App() {
   return (
     <div className={`min-h-screen ${t.shell}`}>
       <Toaster position="top-right" theme={dark ? "dark" : "light"} />
-      <DashboardHeader email={email} fullName={fullName} t={t} onSignOut={handleSignOut} onOpenSettings={setActiveScreen} activeScreen={activeScreen} />
+      <DashboardHeader email={email} fullName={fullName} t={t} onSignOut={handleSignOut} />
+      <SidebarMenu
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        activeScreen={activeScreen}
+        onNavigate={setActiveScreen}
+        t={t}
+        dark={dark}
+      />
 
       <div className="relative overflow-hidden">
         <div className="flex transition-transform duration-500 ease-in-out" style={{ width: "200%", transform: activeScreen === "settings" ? "translateX(-50%)" : "translateX(0)" }}>
@@ -1887,9 +2399,21 @@ export default function App() {
             <ClickSpark sparkColor="#2563eb" sparkCount={10} duration={400}>
               <main className="mx-auto max-w-7xl px-4 py-6 pb-28 sm:px-6 lg:px-8">
                 {error && <StatusBanner message={error} dark={dark} onDismiss={() => setError(null)} />}
-                <div className={`mb-6 rounded-2xl px-5 py-4 ${t.cardMuted}`}>
-                  <p className="text-xs font-bold tracking-wide text-blue-500 uppercase">Welcome back, {firstName}</p>
-                  <h2 className={`mt-1 text-xl font-bold sm:text-2xl ${t.textPrimary}`}>Sticker board</h2>
+                <div className="mb-6 flex w-full items-center gap-4">
+                  <div className={`shrink-0 rounded-2xl border p-3 shadow-sm ${dark ? "border-blue-500/20 bg-[#161f42]/80" : "border-gray-100 bg-white"}`}>
+                    <button
+                      type="button"
+                      onClick={() => setSidebarOpen((v) => !v)}
+                      className={`inline-flex items-center rounded-lg p-1.5 transition-colors ${t.textMuted} hover:text-blue-500`}
+                      aria-label="Toggle navigation"
+                    >
+                      <Menu className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className={`flex-1 rounded-2xl px-5 py-4 ${t.cardMuted}`}>
+                    <p className="text-xs font-bold tracking-wide text-blue-500 uppercase">Welcome back, {username || "there"}</p>
+                    <h2 className={`mt-1 text-xl font-bold sm:text-2xl ${t.textPrimary}`}>Sticker board</h2>
+                  </div>
                 </div>
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
                   <div className="space-y-6 lg:col-span-4">
@@ -1898,7 +2422,26 @@ export default function App() {
                   </div>
                   <div className="lg:col-span-8">
                     <h2 className={`mb-4 text-sm font-bold ${t.textPrimary}`}>Sticker Matrix</h2>
-                    <StickerGrid tasks={tasks} t={t} dark={dark} isLoading={isLoading} deletingTaskId={deletingTaskId} onToggleSubTask={handleToggleSubTask} onDelete={handleDelete} onEdit={handleEditTask} currentTime={currentTime} />
+                    <TaskFilterBar
+                      priorityFilter={priorityFilter}
+                      dateFilter={dateFilter}
+                      onPriorityChange={setPriorityFilter}
+                      onDateChange={setDateFilter}
+                      t={t}
+                      dark={dark}
+                    />
+                    <StickerGrid
+                      tasks={filteredTasks}
+                      t={t}
+                      dark={dark}
+                      isLoading={isLoading}
+                      deletingTaskId={deletingTaskId}
+                      onToggleSubTask={handleToggleSubTask}
+                      onDelete={handleDelete}
+                      onEdit={handleEditTask}
+                      currentTime={currentTime}
+                      hasActiveFilters={hasActiveFilters}
+                    />
                     <CalendarGrid tasks={tasks} t={t} dark={dark} onDayClick={setSelectedDate} />
                   </div>
                 </div>
@@ -1914,7 +2457,7 @@ export default function App() {
       <CustomAlertModal config={alertConfig} onClose={() => setAlertConfig(null)} dark={dark} />
 
       {activeScreen === "workspace" && (
-        <AiAssistantDrawer tasks={tasks} t={t} dark={dark} onExecuteActions={handleExecuteActions} />
+        <AiAssistantDrawer tasks={tasks} t={t} dark={dark} onExecuteActions={handleExecuteActions} onRunAgent={handleAgentMessage} />
       )}
     </div>
   );

@@ -11,6 +11,7 @@
     "start": "node server.js"
   },
   "dependencies": {
+    "@google/genai": "^2.10.0",
     "@supabase/supabase-js": "^2.108.2",
     "animejs": "^4.5.0",
     "cors": "^2.8.6",
