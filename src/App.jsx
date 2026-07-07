@@ -26,12 +26,26 @@ import {
   X,
   Clock,
   AlertTriangle,
+  StickyNote,
+  PieChart,
+  Table,
+  PenTool,
+  GitMerge,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import BorderGlow from "./components/BorderGlow/BorderGlow";
+import StickerWorkspace from "./components/StickerWorkspace";
+import useStickerInteractions from "./hooks/useStickerInteractions";
 import { Toaster, toast } from "sonner";
 import { handleChatMessage } from "./chat/handler";
+import { routeLocalIntent } from "./chat/LocalIntentRouter";
 import { GoogleGenAI } from "@google/genai";
+import AppHeader from "./components/layout/AppHeader";
+import WorkspaceHero from "./components/dashboard/WorkspaceHero";
+import ProjectCard from "./components/dashboard/ProjectCard";
+import ProjectGrid from "./components/dashboard/ProjectGrid";
+import DashboardSection from "./components/dashboard/DashboardSection";
+import FinanceWorkspace from "./components/finance/FinanceWorkspace";
 
 // ─── Custom Alert Modal ────────────────────────────────────────────────────────
 
@@ -71,14 +85,19 @@ function CustomAlertModal({ config, onClose, dark }) {
 
 const JUDGE_EMAIL = "judge12@gmail.com";
 const JUDGE_PASSWORD = "judge123";
-const RELIABILITY_STORAGE_PREFIX = "tasker_reliability_";
+
 const TASK_META_PREFIX = "tasker_task_meta_";
 const GEMINI_MODEL = "gemini-2.5-flash";
 
-const URGENCY_LEVELS = [
-  { id: "urgent", label: "Urgent", score: 9 },
-  { id: "important", label: "Important", score: 6 },
-  { id: "not-important", label: "Not Important", score: 3 },
+const STICKER_COLORS = [
+  { id: "yellow", label: "Yellow", class: "bg-yellow-100 text-yellow-900 border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-200 dark:border-yellow-700/50" },
+  { id: "blue", label: "Blue", class: "bg-blue-100 text-blue-900 border-blue-300 dark:bg-blue-900/40 dark:text-blue-200 dark:border-blue-700/50" },
+  { id: "green", label: "Green", class: "bg-green-100 text-green-900 border-green-300 dark:bg-green-900/40 dark:text-green-200 dark:border-green-700/50" },
+  { id: "pink", label: "Pink", class: "bg-pink-100 text-pink-900 border-pink-300 dark:bg-pink-900/40 dark:text-pink-200 dark:border-pink-700/50" },
+  { id: "orange", label: "Orange", class: "bg-orange-100 text-orange-900 border-orange-300 dark:bg-orange-900/40 dark:text-orange-200 dark:border-orange-700/50" },
+  { id: "purple", label: "Purple", class: "bg-purple-100 text-purple-900 border-purple-300 dark:bg-purple-900/40 dark:text-purple-200 dark:border-purple-700/50" },
+  { id: "grey", label: "Grey", class: "bg-slate-100 text-slate-900 border-slate-300 dark:bg-slate-900/40 dark:text-slate-200 dark:border-slate-700/50" },
+  { id: "white", label: "White", class: "bg-white text-zinc-900 border-zinc-200 dark:bg-[#161f42] dark:text-slate-200 dark:border-blue-500/20" },
 ];
 
 const QUICK_ACTIONS = [
@@ -101,7 +120,7 @@ const DATE_FILTERS = [
   { id: "month", label: "Due Within a Month" },
 ];
 
-const CALENDAR_MONTHS_AHEAD = 12;
+
 
 // ─── Midnight theme tokens ───────────────────────────────────────────────────
 
@@ -437,30 +456,9 @@ function findBestTaskByTitle(tasks, title) {
   }) ?? null;
 }
 
-function ragStickerClass(score, dark) {
-  if (score >= 8) {
-    return dark
-      ? "bg-red-950/40 border border-red-500/30 text-slate-100"
-      : "bg-red-50/90 border border-red-200/60 text-zinc-900";
-  }
-  if (score >= 5) {
-    return dark
-      ? "bg-amber-950/35 border border-amber-500/25 text-slate-100"
-      : "bg-amber-50/90 border border-amber-200/60 text-zinc-900";
-  }
-  return dark
-    ? "bg-emerald-950/35 border border-emerald-500/25 text-slate-100"
-    : "bg-emerald-50/90 border border-emerald-200/60 text-zinc-900";
-}
-
-function urgencyBadgeClass(label, dark) {
-  if (label === "Urgent") {
-    return dark ? "bg-red-500/20 text-red-300" : "bg-red-100/80 text-red-700";
-  }
-  if (label === "Important") {
-    return dark ? "bg-amber-500/20 text-amber-300" : "bg-amber-100/80 text-amber-800";
-  }
-  return dark ? "bg-emerald-500/20 text-emerald-300" : "bg-emerald-100/80 text-emerald-800";
+function getStickerClass(colorId) {
+  const match = STICKER_COLORS.find(c => c.id === colorId);
+  return match ? match.class : STICKER_COLORS[0].class;
 }
 
 // ─── Task utilities ────────────────────────────────────────────────────────────
@@ -522,7 +520,7 @@ function mapSupabaseTask(row, meta = {}) {
     deadline: row.deadline ? new Date(row.deadline) : new Date(),
     createdAt: new Date(row.created_at || Date.now()),
     urgencyScore,
-    urgencyLabel: taskMeta.urgencyLabel ?? urgencyLabelFromScore(urgencyScore),
+    stickerColor: taskMeta.color || "yellow",
     plannedDate: taskMeta.plannedDate ?? dateKey(row.deadline),
     subTasks: normalizeSubTasks(row.sub_tasks),
     isCompleted: row.is_completed,
@@ -618,20 +616,7 @@ function findTaskByHint(tasks, hint) {
   return byTitle ?? top ?? tasks[0] ?? null;
 }
 
-// ─── Plan-to-Execution Reliability Engine ──────────────────────────────────────
-
-function readReliabilityStore(userId) {
-  try {
-    const raw = localStorage.getItem(`${RELIABILITY_STORAGE_PREFIX}${userId}`);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeReliabilityStore(userId, store) {
-  localStorage.setItem(`${RELIABILITY_STORAGE_PREFIX}${userId}`, JSON.stringify(store));
-}
+// ─── Task Meta (localStorage per-task metadata) ───────────────────────────────
 
 function readTaskMeta(userId) {
   try {
@@ -644,121 +629,6 @@ function readTaskMeta(userId) {
 
 function writeTaskMeta(userId, meta) {
   localStorage.setItem(`${TASK_META_PREFIX}${userId}`, JSON.stringify(meta));
-}
-
-function createDayRecord(userId, date) {
-  return {
-    userId,
-    date,
-    tasksPlannedCount: 0,
-    tasksCompletedCount: 0,
-    tasksRescheduledCount: 0,
-    reliabilityScore: null,
-    intensityBucket: -1,
-  };
-}
-
-/** Score = (Completed + 0.5 * Rescheduled) / Total_Planned; bounded 0–1 */
-function finalizeDayRecord(record) {
-  const total = record.tasksPlannedCount;
-  if (total === 0) {
-    record.reliabilityScore = null;
-    record.intensityBucket = -1;
-    return record;
-  }
-  const overdue = Math.max(0, total - record.tasksCompletedCount - record.tasksRescheduledCount);
-  const totalLoad = record.tasksCompletedCount + record.tasksRescheduledCount + overdue;
-  if (totalLoad === 0) {
-    record.reliabilityScore = null;
-    record.intensityBucket = -1;
-    return record;
-  }
-  const raw =
-    (record.tasksCompletedCount + 0.5 * record.tasksRescheduledCount) / totalLoad;
-  const score = Math.min(1, Math.max(0, raw));
-  record.reliabilityScore = score;
-  if (score === 0) record.intensityBucket = 0;
-  else if (score <= 0.25) record.intensityBucket = 1;
-  else if (score <= 0.5) record.intensityBucket = 2;
-  else if (score <= 0.75) record.intensityBucket = 3;
-  else record.intensityBucket = 4;
-  return record;
-}
-
-function touchDay(store, userId, date) {
-  if (!store[date]) store[date] = createDayRecord(userId, date);
-  return store[date];
-}
-
-function registerTaskPlanned(userId, taskId, plannedDate, urgencyLabel) {
-  const store = readReliabilityStore(userId);
-  const meta = readTaskMeta(userId);
-  meta[taskId] = { plannedDate, urgencyLabel, createdAt: Date.now() };
-  const day = touchDay(store, userId, plannedDate);
-  day.tasksPlannedCount += 1;
-  finalizeDayRecord(day);
-  writeReliabilityStore(userId, store);
-  writeTaskMeta(userId, meta);
-  return store;
-}
-
-function registerTaskCompleted(userId, taskId) {
-  const meta = readTaskMeta(userId);
-  const taskMeta = meta[taskId];
-  if (!taskMeta) return readReliabilityStore(userId);
-  const store = readReliabilityStore(userId);
-  const plannedDate = taskMeta.plannedDate;
-  const day = touchDay(store, userId, plannedDate);
-  if (!taskMeta.completedRegistered) {
-    day.tasksCompletedCount += 1;
-    taskMeta.completedRegistered = true;
-    finalizeDayRecord(day);
-    writeReliabilityStore(userId, store);
-    writeTaskMeta(userId, meta);
-  }
-  return store;
-}
-
-function registerTaskRescheduled(userId, taskId, fromDate, toDate) {
-  const meta = readTaskMeta(userId);
-  const store = readReliabilityStore(userId);
-  const day = touchDay(store, userId, fromDate);
-  if (!meta[taskId]?.rescheduleRegistered?.includes(fromDate)) {
-    day.tasksRescheduledCount += 1;
-    finalizeDayRecord(day);
-    if (!meta[taskId]) meta[taskId] = {};
-    meta[taskId].rescheduleRegistered = [...(meta[taskId].rescheduleRegistered ?? []), fromDate];
-    meta[taskId].plannedDate = toDate;
-    writeReliabilityStore(userId, store);
-    writeTaskMeta(userId, meta);
-  }
-  return store;
-}
-
-// ─── Consistency Board: compute today's score ────────────────────────────────
-
-function computeTodayReliability(tasks) {
-  const today = dateKey(new Date());
-  const todayTasks = tasks.filter((t) => {
-    const taskDate = dateKey(t.deadline);
-    return taskDate === today;
-  });
-  const total = todayTasks.length;
-  if (total === 0) return { score: null, total: 0, completed: 0, rescheduled: 0 };
-  const completed = todayTasks.filter((t) => t.isCompleted).length;
-  // Rescheduled = 0 for live board (no way to detect without store cross-ref in real-time)
-  // We approximate: tasks whose deadline was moved forward by checking meta store
-  const rescheduled = 0;
-  const score = Math.min(1, Math.max(0, (completed + 0.5 * rescheduled) / total));
-  return { score, total, completed, rescheduled };
-}
-
-function emojiForScore(score) {
-  if (score === null) return { emoji: "😶", label: "No tasks today" };
-  if (score < 0.3) return { emoji: "🥲", label: "Struggling" };
-  if (score < 0.6) return { emoji: "😐", label: "Neutral" };
-  if (score < 0.8) return { emoji: "😁", label: "Happy" };
-  return { emoji: "😃", label: "Excellent" };
 }
 
 // ─── Chat AI ───────────────────────────────────────────────────────────────────
@@ -999,50 +869,20 @@ function AuthScreen({ onAuthenticated, t }) {
 }
 
 // ─── Header ──────────────────────────────────────────────────────────────────
-
-function DashboardHeader({ email, fullName, t, onSignOut }) {
-  const initials = (fullName || email || "U").split(/\s+/).map((p) => p[0]).join("").slice(0, 2).toUpperCase();
-
-  return (
-    <header className={`border-b px-4 py-4 sm:px-6 lg:px-8 ${t.header}`}>
-      <div className="flex h-16 items-center justify-between">
-        <div className="flex h-full shrink-0 items-center">
-          <BrandLogo className="h-full w-auto object-contain max-h-16" />
-        </div>
-        {/* Profile dropdown with group hover bridge */}
-        <div className="relative group py-2">
-          <button type="button" className={`flex items-center gap-2.5 rounded-xl border px-3 py-2 shadow-sm ${t.profileBtn}`}>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-xs font-bold text-white">{initials}</div>
-            <span className={`hidden max-w-[140px] truncate text-sm font-medium sm:inline ${t.textPrimary}`}>{email}</span>
-            <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-hover:rotate-180" />
-          </button>
-          {/* Invisible bridge + dropdown: pt-1 creates hover-safe gap between trigger and menu */}
-          <div className="absolute right-0 top-full z-50 hidden w-64 pt-1 group-hover:block">
-            {/* Extra invisible bridge area to prevent gap-close */}
-            <div className="h-1" />
-            <div className={`overflow-hidden rounded-2xl border shadow-xl ${t.dropdown}`}>
-              <div className={`border-b px-4 py-3 ${t.shell.includes("0a0f24") ? "border-blue-500/20" : "border-zinc-100"}`}>
-                <p className={`text-xs font-semibold uppercase ${t.textMuted}`}>Signed in as</p>
-                <p className={`mt-1 truncate text-sm font-medium ${t.textPrimary}`}>{email}</p>
-              </div>
-              <div className="p-2">
-                <button
-                  type="button"
-                  onClick={onSignOut}
-                  className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold ${t.shell.includes("0a0f24") ? "bg-[#0d1530] text-slate-200 hover:bg-red-950/50 hover:text-red-400" : "bg-zinc-50 text-zinc-700 hover:bg-red-50 hover:text-red-600"}`}
-                >
-                  <LogOut className="h-4 w-4" /> Log Out
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </header>
-  );
-}
+// Extracted to src/components/layout/AppHeader.jsx
 
 function SidebarMenu({ open, onClose, activeScreen, onNavigate, t, dark }) {
+  const NavButton = ({ id, label, icon: Icon }) => (
+    <button
+      type="button"
+      onClick={() => { onNavigate(id); onClose(); }}
+      className={`flex w-full items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${activeScreen === id ? "border-blue-500/40 bg-blue-500/10 text-blue-500" : t.navBtn}`}
+    >
+      <Icon className="h-4 w-4" />
+      {label}
+    </button>
+  );
+
   return (
     <>
       <div
@@ -1050,30 +890,33 @@ function SidebarMenu({ open, onClose, activeScreen, onNavigate, t, dark }) {
         onClick={onClose}
       />
       <aside className={`fixed left-0 top-0 z-[130] h-full w-[280px] transform border-r p-5 transition-transform duration-300 ${open ? "translate-x-0" : "-translate-x-full"} ${dark ? "border-blue-500/20 bg-[#0a0f24]" : "border-zinc-200 bg-white"}`}>
-        <div className="flex items-center justify-between">
-          <h2 className={`text-sm font-bold uppercase tracking-wider ${t.textPrimary}`}>Menu Options</h2>
+        <div className="flex items-center justify-between mb-8">
+          <h2 className={`text-sm font-bold uppercase tracking-wider ${t.textPrimary}`}>Navigation</h2>
           <button type="button" onClick={onClose} className={`rounded-lg p-2 ${t.navBtn}`} aria-label="Close menu">
             <X className="h-4 w-4" />
           </button>
         </div>
-        <nav className="mt-8 space-y-2">
-          <button
-            type="button"
-            onClick={() => { onNavigate("workspace"); onClose(); }}
-            className={`flex w-full items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${activeScreen === "workspace" ? "border-blue-500/40 bg-blue-500/10 text-blue-500" : t.navBtn}`}
-          >
-            <LayoutGrid className="h-4 w-4" />
-            Workspace
-          </button>
-          <button
-            type="button"
-            onClick={() => { onNavigate("settings"); onClose(); }}
-            className={`flex w-full items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${activeScreen === "settings" ? "border-blue-500/40 bg-blue-500/10 text-blue-500" : t.navBtn}`}
-          >
-            <Settings className="h-4 w-4" />
-            Settings
-          </button>
-        </nav>
+        
+        <div className="space-y-6">
+          <div>
+            <h3 className={`mb-3 px-1 text-xs font-bold tracking-widest text-slate-400 uppercase`}>Main</h3>
+            <nav className="space-y-2">
+              <NavButton id="workspace" label="Workspace" icon={LayoutGrid} />
+              <NavButton id="settings" label="Settings" icon={Settings} />
+            </nav>
+          </div>
+
+          <div>
+            <h3 className={`mb-3 px-1 text-xs font-bold tracking-widest text-slate-400 uppercase`}>Tools</h3>
+            <nav className="space-y-2">
+              <NavButton id="sticker" label="Sticker" icon={StickyNote} />
+              <NavButton id="finance" label="Finance" icon={PieChart} />
+              <NavButton id="table" label="Table" icon={Table} />
+              <NavButton id="draw" label="Draw" icon={PenTool} />
+              <NavButton id="flow" label="Flow" icon={GitMerge} />
+            </nav>
+          </div>
+        </div>
       </aside>
     </>
   );
@@ -1091,7 +934,7 @@ function PanicDump({ t, onSubmit, isSubmitting, selectedDate }) {
       setDeadline(`${selectedDate}T09:00`);
     }
   }, [selectedDate]);
-  const [urgencyLevel, setUrgencyLevel] = useState("important");
+  const [stickerColor, setStickerColor] = useState("yellow");
   const [subTaskInput, setSubTaskInput] = useState("");
   const [pendingSubTasks, setPendingSubTasks] = useState([]);
 
@@ -1117,11 +960,12 @@ function PanicDump({ t, onSubmit, isSubmitting, selectedDate }) {
     e.preventDefault();
     if (!description.trim() || isSubmitting) return;
     try {
-      await onSubmit(manualTitle.trim(), description.trim(), deadline, urgencyLevel, pendingSubTasks);
+      // Pass stickerColor instead of urgencyLevel
+      await onSubmit(manualTitle.trim(), description.trim(), deadline, stickerColor, pendingSubTasks);
       setManualTitle("");
       setDescription("");
       setDeadline("");
-      setUrgencyLevel("important");
+      setStickerColor("yellow");
       setPendingSubTasks([]);
       setSubTaskInput("");
     } catch { /* parent handles */ }
@@ -1186,27 +1030,17 @@ function PanicDump({ t, onSubmit, isSubmitting, selectedDate }) {
           <input type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)} className={`w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:ring-2 ${t.input}`} />
         </div>
         <div>
-          <label className={`mb-2 block text-xs font-semibold uppercase ${t.textMuted}`}>How urgent is this?</label>
-          <div className="grid grid-cols-3 gap-2">
-            {URGENCY_LEVELS.map((level) => (
+          <label className={`mb-3 block text-xs font-semibold uppercase tracking-wider ${t.textMuted}`}>Select Sticker Color</label>
+          <div className="flex flex-wrap gap-3">
+            {STICKER_COLORS.map((color) => (
               <button
-                key={level.id}
+                key={color.id}
                 type="button"
-                onClick={() => setUrgencyLevel(level.id)}
-                className={`rounded-xl border px-2 py-2.5 text-xs font-bold transition-all ${
-                  urgencyLevel === level.id
-                    ? level.id === "urgent"
-                      ? "border-red-400 bg-red-50 text-red-700 ring-2 ring-red-200 dark:bg-red-950/40 dark:text-red-300"
-                      : level.id === "important"
-                        ? "border-amber-400 bg-amber-50 text-amber-800 ring-2 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300"
-                        : "border-emerald-400 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300"
-                    : t.shell.includes("0a0f24")
-                      ? "border-blue-500/15 bg-[#0d1530]/60 text-slate-500"
-                      : "border-zinc-200 bg-zinc-50 text-zinc-500"
-                }`}
-              >
-                {level.label}
-              </button>
+                onClick={() => setStickerColor(color.id)}
+                className={`h-8 w-8 rounded-full border-2 transition-transform hover:scale-110 ${stickerColor === color.id ? "ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-[#161f42] scale-110" : ""}`}
+                style={{ backgroundColor: color.id === "white" ? "#f8fafc" : color.hex, borderColor: "rgba(0,0,0,0.1)" }}
+                aria-label={color.label}
+              />
             ))}
           </div>
         </div>
@@ -1218,259 +1052,7 @@ function PanicDump({ t, onSubmit, isSubmitting, selectedDate }) {
   );
 }
 
-// ─── Consistency Board (Emoji Slider) ──────────────────────────────────────────
 
-function ConsistencyBoard({ tasks, dark, t }) {
-  const safeTasksArray = Array.isArray(tasks) ? tasks.filter(Boolean) : [];
-  const totalVisible = safeTasksArray.length;
-  const completedVisible = safeTasksArray.filter((t) => t.isCompleted).length;
-  const score = totalVisible > 0 ? completedVisible / totalVisible : null;
-  const total = totalVisible;
-  const completed = completedVisible;
-  
-  const { emoji, label } = emojiForScore(score);
-  const displayScore = score !== null ? score : 0;
-  const percentage = Math.round(displayScore * 100);
-
-  // Track fill colour for the slider bar
-  const barColor =
-    score === null
-      ? dark ? "bg-slate-700" : "bg-zinc-200"
-      : score < 0.3
-        ? dark ? "bg-red-500/60" : "bg-red-300"
-        : score < 0.6
-          ? dark ? "bg-amber-500/60" : "bg-amber-300"
-          : score < 0.8
-            ? dark ? "bg-blue-500/70" : "bg-blue-400"
-            : dark ? "bg-emerald-500/70" : "bg-emerald-400";
-
-  const trackBg = dark ? "bg-[#0d1530]" : "bg-zinc-100";
-
-  return (
-    <section className={`rounded-2xl p-5 ${t.card}`}>
-      <h2 className={`text-sm font-bold ${t.textPrimary}`}>Consistency Board</h2>
-
-      {/* Emoji slider */}
-      <div className="mt-4">
-        {/* The slider track */}
-        <div className="relative">
-          {/* Background track */}
-          <div className={`h-3 w-full rounded-full ${trackBg}`}>
-            {/* Filled portion */}
-            <div
-              className={`h-3 rounded-full transition-all duration-500 ease-out ${barColor}`}
-              style={{ width: `${Math.max(2, percentage)}%` }}
-            />
-          </div>
-          {/* Emoji node positioned on the slider */}
-          <div
-            className="absolute -top-4 transition-all duration-500 ease-out"
-            style={{ left: `calc(${Math.max(2, Math.min(95, percentage))}% - 16px)` }}
-          >
-            <span className="text-3xl drop-shadow-md select-none" role="img" aria-label={label}>
-              {emoji}
-            </span>
-          </div>
-        </div>
-
-        {/* Scale markers */}
-        <div className="mt-6 flex justify-between px-0.5">
-          {[0, 0.3, 0.6, 0.8, 1.0].map((v) => (
-            <span key={v} className={`text-[10px] font-mono ${t.textMuted}`}>{v.toFixed(1)}</span>
-          ))}
-        </div>
-
-        {/* Score readout */}
-        <div className="mt-3 flex items-center justify-between">
-          <span className={`text-xs font-semibold ${t.textMuted}`}>
-            {score !== null ? `${label} · ${completed}/${total} done` : "No tasks planned for today"}
-          </span>
-          {score !== null && (
-            <span className="font-mono text-sm font-bold text-blue-500">{percentage}%</span>
-          )}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ─── Calendar ──────────────────────────────────────────────────────────────────
-
-const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-
-function buildMonthDays(year, month) {
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDayOfMonth = new Date(year, month, 1).getDay();
-  const days = [];
-  for (let i = 0; i < firstDayOfMonth; i++) days.push(null);
-  for (let i = 1; i <= daysInMonth; i++) {
-    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(i).padStart(2, "0")}`;
-    days.push({ day: i, dateStr });
-  }
-  return days;
-}
-
-function MonthCalendar({ year, month, tasks, dark, t, onDayClick, todayDateStr }) {
-  const days = buildMonthDays(year, month);
-
-  return (
-    <div className="grid grid-cols-7 gap-px overflow-hidden rounded-xl border bg-slate-200 dark:bg-[#161f42]/40 dark:border-blue-500/10 border-slate-200">
-      {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-        <div key={day} className={`p-2 text-center text-[10px] font-bold uppercase tracking-wider ${dark ? "bg-[#0d1530] text-slate-400" : "bg-slate-50 text-slate-500"}`}>
-          {day}
-        </div>
-      ))}
-      {days.map((d, idx) => {
-        if (!d) return <div key={`empty-${idx}`} className={dark ? "bg-[#161f42]/40" : "bg-white"} />;
-
-        const safeTasksArray = Array.isArray(tasks) ? tasks.filter(Boolean) : [];
-        const dayTasks = safeTasksArray.filter((task) => {
-          try {
-            if (!task || !task.deadline) return false;
-            const taskDateStr = new Date(task.deadline).toISOString().split("T")[0];
-            return taskDateStr === d.dateStr;
-          } catch {
-            return false;
-          }
-        });
-        const isToday = d.dateStr === todayDateStr;
-        const bgClass = isToday
-          ? dark ? "bg-blue-900/30 text-blue-100" : "bg-blue-50 text-blue-900"
-          : dark ? "bg-[#161f42]/40 text-blue-100" : "bg-white text-slate-700";
-
-        return (
-          <div
-            key={d.dateStr}
-            onClick={() => onDayClick(d.dateStr)}
-            className={`min-h-[100px] p-1.5 transition-colors cursor-pointer hover:bg-blue-500/10 ${bgClass} relative group/cell ${isToday ? "ring-inset ring-2 ring-blue-500 z-10" : ""}`}
-          >
-            <div className={`text-xs font-semibold mb-1 px-1 ${isToday ? "text-blue-600 dark:text-blue-400" : dark ? "opacity-70" : "text-slate-500"}`}>{d.day}</div>
-            <div className="flex flex-col gap-1">
-              {dayTasks.map((task) => (
-                <div key={task.id} className="group/pill relative">
-                  <div className={`truncate rounded px-1.5 py-0.5 text-[10px] font-bold ${urgencyBadgeClass(task.urgencyLabel, dark)}`}>
-                    {task.title}
-                  </div>
-                  <div className={`absolute bottom-full left-1/2 z-[100] mb-2 hidden w-48 -translate-x-1/2 rounded-lg p-2 text-xs shadow-xl group-hover/pill:block ${t.dropdown}`}>
-                    <p className={`line-clamp-4 ${t.textMuted}`}>{task.rawInput}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function CalendarGrid({ tasks, t, dark, onDayClick }) {
-  const today = useMemo(() => new Date(), []);
-  const baseMonthRef = useRef(new Date(today.getFullYear(), today.getMonth(), 1));
-  const todayDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-  const scrollRef = useRef(null);
-  const monthRefs = useRef([]);
-  const [renderedMonthCount, setRenderedMonthCount] = useState(CALENDAR_MONTHS_AHEAD + 1);
-  const [activeMonthIndex, setActiveMonthIndex] = useState(0);
-
-  const months = useMemo(() => {
-    const list = [];
-    for (let i = 0; i < renderedMonthCount; i++) {
-      const d = new Date(baseMonthRef.current.getFullYear(), baseMonthRef.current.getMonth() + i, 1);
-      list.push({ year: d.getFullYear(), month: d.getMonth(), index: i });
-    }
-    return list;
-  }, [renderedMonthCount]);
-
-  const scrollToMonth = useCallback((index) => {
-    const clamped = Math.max(0, Math.min(index, months.length - 1));
-    setActiveMonthIndex(clamped);
-    monthRefs.current[clamped]?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [months.length]);
-
-  useEffect(() => {
-    const container = scrollRef.current;
-    if (!container) return;
-
-    const onScroll = () => {
-      const containerTop = container.getBoundingClientRect().top;
-      let nearest = activeMonthIndex;
-      let nearestDistance = Infinity;
-
-      monthRefs.current.forEach((node, idx) => {
-        if (!node) return;
-        const distance = Math.abs(node.getBoundingClientRect().top - containerTop - 8);
-        if (distance < nearestDistance) {
-          nearestDistance = distance;
-          nearest = idx;
-        }
-      });
-
-      if (nearest !== activeMonthIndex) setActiveMonthIndex(nearest);
-
-      const closeToBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 120;
-      if (closeToBottom) setRenderedMonthCount((count) => count + 6);
-    };
-
-    container.addEventListener("scroll", onScroll, { passive: true });
-    return () => container.removeEventListener("scroll", onScroll);
-  }, [activeMonthIndex]);
-
-  const activeMonth = months[activeMonthIndex];
-
-  return (
-    <section className={`mt-6 rounded-2xl p-5 ${t.card}`}>
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className={`text-sm font-bold ${t.textPrimary}`}>Calendar View</h2>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => scrollToMonth(activeMonthIndex - 1)}
-            disabled={activeMonthIndex === 0}
-            className={`rounded-lg p-1.5 transition-colors disabled:opacity-30 ${dark ? "hover:bg-blue-500/10 text-blue-300" : "hover:bg-blue-50 text-blue-600"}`}
-            aria-label="Previous month"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <span className={`min-w-[140px] text-center text-xs font-bold uppercase tracking-widest text-blue-500`}>
-            {MONTH_NAMES[activeMonth.month]} {activeMonth.year}
-          </span>
-          <button
-            type="button"
-            onClick={() => scrollToMonth(activeMonthIndex + 1)}
-            disabled={activeMonthIndex >= months.length - 1}
-            className={`rounded-lg p-1.5 transition-colors disabled:opacity-30 ${dark ? "hover:bg-blue-500/10 text-blue-300" : "hover:bg-blue-50 text-blue-600"}`}
-            aria-label="Next month"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-      <div ref={scrollRef} className="max-h-[450px] space-y-6 overflow-y-auto scrollbar-thin pr-1">
-        {months.map(({ year, month, index }) => (
-          <div
-            key={`${year}-${month}`}
-            ref={(el) => { monthRefs.current[index] = el; }}
-            className="scroll-mt-2"
-          >
-            <h3 className={`mb-2 text-xs font-bold uppercase tracking-wider ${t.textMuted}`}>
-              {MONTH_NAMES[month]} {year}
-            </h3>
-            <MonthCalendar
-              year={year}
-              month={month}
-              tasks={tasks}
-              dark={dark}
-              t={t}
-              onDayClick={onDayClick}
-              todayDateStr={todayDateStr}
-            />
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
 
 // ─── Stickers ──────────────────────────────────────────────────────────────────
 
@@ -1529,7 +1111,7 @@ function StickerCard({ task, dark, t, onToggleSubTask, onDelete, onEdit, isDelet
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
   const [editRawInput, setEditRawInput] = useState(task.rawInput);
-  const [editUrgency, setEditUrgency] = useState(task.urgencyScore >= 8 ? "urgent" : task.urgencyScore >= 5 ? "important" : "not-important");
+  const [editColor, setEditColor] = useState(task.stickerColor || "yellow");
 
   const verifiedSubTasks = task && Array.isArray(task.subTasks) ? task.subTasks : [];
   const deadlineMs = task?.deadline instanceof Date ? task.deadline.getTime() : new Date().getTime();
@@ -1542,50 +1124,54 @@ function StickerCard({ task, dark, t, onToggleSubTask, onDelete, onEdit, isDelet
   const showCountdown = (deadlineMs - now) <= TWENTY_FOUR_HOURS_MS && (deadlineMs - now) >= 0;
   
   const handleSave = () => {
-    if (onEdit) onEdit(task.id, { title: editTitle, rawInput: editRawInput, urgencyLevelId: editUrgency });
+    if (onEdit) onEdit(task.id, { title: editTitle, rawInput: editRawInput, color: editColor });
     setIsEditing(false);
   };
 
   return (
-    <article className={`animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out group relative flex h-[280px] w-full flex-col rounded-2xl p-4 shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg ${ragStickerClass(task.urgencyScore, dark)} ${isOvertime ? "border-2 border-red-500" : ""}`}>
+    <article className={`group relative flex w-full flex-col rounded-2xl p-4 shadow-md transition-all overflow-hidden ${getStickerClass(task.stickerColor)} ${isOvertime ? "border-2 border-red-500" : ""}`}>
       
       <div className="absolute top-3 right-3 flex gap-1 opacity-0 transition-all group-hover:opacity-100 z-10">
         {!isEditing && (
-          <button type="button" onClick={() => setIsEditing(true)} disabled={isDeleting} className="rounded-lg p-1.5 hover:text-blue-500 disabled:opacity-50 bg-white/20 backdrop-blur-sm" aria-label="Edit">
+          <button type="button" onClick={() => setIsEditing(true)} disabled={isDeleting} className="rounded-lg p-1.5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors disabled:opacity-50" aria-label="Edit">
             <Pencil className="h-4 w-4" />
           </button>
         )}
-        <button type="button" onClick={() => onDelete(task.id)} disabled={isDeleting} className="rounded-lg p-1.5 hover:text-red-500 disabled:opacity-50 bg-white/20 backdrop-blur-sm" aria-label="Delete">
+        <button type="button" onClick={() => onDelete(task.id)} disabled={isDeleting} className="rounded-lg p-1.5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors disabled:opacity-50 text-red-500" aria-label="Delete">
           {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
         </button>
       </div>
 
       {isEditing ? (
         <div className="flex flex-col flex-1 gap-2 mt-6">
-          <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="rounded p-1 text-sm font-bold bg-white/40 dark:bg-black/20 outline-none focus:ring-2 focus:ring-blue-500" />
-          <textarea value={editRawInput} onChange={(e) => setEditRawInput(e.target.value)} className="rounded p-1 text-xs bg-white/40 dark:bg-black/20 flex-1 outline-none resize-none focus:ring-2 focus:ring-blue-500" />
-          <select value={editUrgency} onChange={(e) => setEditUrgency(e.target.value)} className="rounded p-1 text-xs bg-white/40 dark:bg-black/20 outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="not-important">Not Important</option>
-            <option value="important">Important</option>
-            <option value="urgent">Urgent</option>
-          </select>
-          <button onClick={handleSave} className="mt-2 bg-blue-500 text-white rounded p-1.5 text-xs font-bold flex items-center justify-center gap-1 hover:bg-blue-600 transition-colors">
+          <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="rounded p-1.5 text-sm font-bold bg-black/5 dark:bg-black/20 outline-none focus:ring-2 focus:ring-blue-500" />
+          <textarea value={editRawInput} onChange={(e) => setEditRawInput(e.target.value)} className="rounded p-1.5 text-xs bg-black/5 dark:bg-black/20 flex-1 outline-none resize-none focus:ring-2 focus:ring-blue-500" />
+          
+          <div className="flex flex-wrap gap-1 mt-1">
+            {STICKER_COLORS.map(color => (
+              <button
+                key={color.id}
+                onClick={() => setEditColor(color.id)}
+                className={`w-5 h-5 rounded-full ${editColor === color.id ? "ring-2 ring-blue-500" : ""}`}
+                style={{ backgroundColor: color.hex, borderColor: "rgba(0,0,0,0.1)", borderWidth: 1 }}
+              />
+            ))}
+          </div>
+
+          <button onClick={handleSave} className="mt-2 bg-blue-500 text-white rounded-lg p-2 text-xs font-bold flex items-center justify-center gap-1 hover:bg-blue-600 transition-colors">
             <Save className="h-3 w-3" /> Save Changes
           </button>
         </div>
       ) : (
         <>
-          <div className="mb-2 flex items-start justify-between gap-2 pr-12">
+          <div className="mb-2 flex items-start justify-between gap-2 pr-16">
             {isOvertime ? (
               <h3 className="text-base font-bold leading-snug text-red-600 dark:text-red-400 animate-pulse uppercase">OVERTIME</h3>
             ) : (
               <h3 className="text-base font-bold leading-snug">{task.title}</h3>
             )}
-            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${urgencyBadgeClass(task.urgencyLabel, dark)}`}>
-              {task.urgencyLabel}
-            </span>
           </div>
-          <p className={`line-clamp-3 flex-1 text-xs leading-relaxed ${t.textMuted}`}>{task.rawInput}</p>
+          <p className="flex-1 text-xs leading-relaxed overflow-y-auto whitespace-pre-wrap">{task.rawInput}</p>
           {verifiedSubTasks.length > 0 && (
             <ul className="mt-3 space-y-1.5">
           {Array.isArray(verifiedSubTasks) && verifiedSubTasks.map((sub) => (
@@ -1626,60 +1212,58 @@ function StickerCard({ task, dark, t, onToggleSubTask, onDelete, onEdit, isDelet
   );
 }
 
-function StickerGrid({ tasks, t, dark, isLoading, deletingTaskId, onToggleSubTask, onDelete, onEdit, currentTime, hasActiveFilters }) {
-  const stickerScrollRef = useRef(null);
-
-  useEffect(() => {
-    const container = stickerScrollRef.current;
-    if (!container) return;
-
-    const handleWheel = (event) => {
-      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
-      event.preventDefault();
-      container.scrollLeft += event.deltaY;
-    };
-
-    container.addEventListener("wheel", handleWheel, { passive: false });
-    return () => container.removeEventListener("wheel", handleWheel);
-  }, []);
-
+function StickerGrid({ tasks, t, dark, isLoading, deletingTaskId, onToggleSubTask, onDelete, onEdit, currentTime, layout, selectedId, activeId, isDragging, onDragStart, onResizeStart, onBringToFront }) {
   if (isLoading && !tasks.length) {
     return (
-      <div className={`flex flex-col items-center justify-center rounded-2xl border py-20 ${t.card}`}>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
         <Loader2 className="mb-3 h-8 w-8 animate-spin text-blue-600" />
         <p className={`text-sm ${t.textMuted}`}>Loading stickers…</p>
       </div>
     );
   }
-  if (!tasks.length) {
-    return (
-      <div className={`flex flex-col items-center justify-center rounded-2xl border border-dashed py-20 ${t.cardMuted}`}>
-        <p className={`text-sm font-semibold ${t.textPrimary}`}>
-          {hasActiveFilters ? "No tasks match your filters" : "No stickers yet"}
-        </p>
-        {hasActiveFilters && (
-          <p className={`mt-1 text-xs ${t.textMuted}`}>Try adjusting the priority or date filters above</p>
-        )}
-      </div>
-    );
-  }
   return (
-    <div ref={stickerScrollRef} className="flex flex-row gap-4 overflow-x-auto whitespace-nowrap scrollbar-thin pb-2">
-      {tasks.map((task) => (
-        <div key={task.id} className="inline-block w-[300px] shrink-0 align-top">
-          <StickerCard task={task} dark={dark} t={t} onToggleSubTask={onToggleSubTask} onDelete={onDelete} onEdit={onEdit} isDeleting={deletingTaskId === task.id} currentTime={currentTime} />
-        </div>
-      ))}
-    </div>
+    <>
+      {tasks.map((task) => {
+        const pos = layout[task.id];
+        if (!pos) return null;
+        const isActive = activeId === task.id;
+        const isSelected = selectedId === task.id;
+        const wrapperClass = `sticker-wrapper absolute ${
+          isActive && isDragging ? "sticker-dragging" : isSelected ? "sticker-idle sticker-selected" : "sticker-idle"
+        }`;
+        return (
+          <div
+            key={task.id}
+            className={wrapperClass}
+            style={{
+              left: `${pos.x}px`,
+              top: `${pos.y}px`,
+              width: `${pos.w}px`,
+              height: `${pos.h}px`,
+              zIndex: pos.zIndex || 1,
+            }}
+            onPointerDown={(e) => onDragStart(task.id, e)}
+            onClick={() => onBringToFront(task.id)}
+          >
+            <StickerCard task={task} dark={dark} t={t} onToggleSubTask={onToggleSubTask} onDelete={onDelete} onEdit={onEdit} isDeleting={deletingTaskId === task.id} currentTime={currentTime} />
+            {/* Resize handles at four corners */}
+            <div className="resize-handle resize-handle-nw" onPointerDown={(e) => onResizeStart(task.id, "nw", e)} />
+            <div className="resize-handle resize-handle-ne" onPointerDown={(e) => onResizeStart(task.id, "ne", e)} />
+            <div className="resize-handle resize-handle-sw" onPointerDown={(e) => onResizeStart(task.id, "sw", e)} />
+            <div className="resize-handle resize-handle-se" onPointerDown={(e) => onResizeStart(task.id, "se", e)} />
+          </div>
+        );
+      })}
+    </>
   );
 }
 
 // ─── Settings ──────────────────────────────────────────────────────────────────
 
-function SettingsScreen({ dark, setDark, t, onResetAll, isResetting, dbStatus, uptime, taskCount }) {
+function SettingsScreen({ dark, setDark, t, onResetAll, isResetting, dbStatus, uptime, taskCount, onMenuClick }) {
   return (
     <div className="h-full overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
-      <h2 className={`mb-6 text-xl font-bold ${t.textPrimary}`}>Settings & Workspace Core</h2>
+
       <div className="space-y-4">
         <section className={`rounded-2xl p-5 ${t.card}`}>
           <h3 className={`text-sm font-bold ${t.textPrimary}`}>Theme Variant</h3>
@@ -1759,7 +1343,7 @@ function AiAssistantDrawer({ tasks, t, dark, onExecuteActions, onRunAgent }) {
   const [messages, setMessages] = useState([{
     id: "welcome",
     role: "assistant",
-    text: "I am your Autonomous Task OS. You can ask me to organize, bulk-create, or mutate any tasks natively without delay.",
+    text: "Hey! I'm your TASKR Copilot. I can help organize, create, or manage your tasks. Just ask.",
   }]);
   const feedRef = useRef(null);
 
@@ -1779,9 +1363,6 @@ function AiAssistantDrawer({ tasks, t, dark, onExecuteActions, onRunAgent }) {
     if (onRunAgent) {
       const result = await onRunAgent(trimmed);
       finalReply = result?.text || (typeof result === "string" ? result : "Operations completed successfully.");
-      if (result?.metrics) {
-        push("metrics", result.metrics);
-      }
     } else {
       const { reply, actions } = await processAssistantMessage(trimmed, tasks);
       finalReply = reply;
@@ -1793,70 +1374,70 @@ function AiAssistantDrawer({ tasks, t, dark, onExecuteActions, onRunAgent }) {
 
   return (
     <>
-      <button type="button" onClick={() => setOpen((v) => !v)} className={`fixed right-6 bottom-6 z-[70] flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-xl ring-4 ring-blue-500/20 transition-all duration-300 hover:scale-105 hover:bg-blue-700 ${!open ? "animate-pulse" : ""}`}>
+      <button type="button" onClick={() => setOpen((v) => !v)} className={`fixed right-8 bottom-8 z-[70] flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-[0_0_30px_-5px_rgba(37,99,235,0.4)] ring-1 ring-blue-500/20 transition-all duration-300 hover:scale-105 hover:bg-blue-700 ${!open ? "animate-pulse" : ""}`}>
         {open ? <X className="h-6 w-6" /> : <Sparkles className="h-6 w-6" />}
       </button>
-      <div className={`fixed right-6 bottom-24 z-[70] flex w-[min(100vw-3rem,420px)] flex-col overflow-hidden rounded-3xl border shadow-2xl transition-all duration-300 backdrop-blur-2xl ${dark ? "border-white/10 bg-slate-900/70 shadow-blue-900/10" : "border-black/5 bg-white/70 shadow-slate-300/40"} ${open ? "translate-y-0 opacity-100 scale-100" : "pointer-events-none translate-y-8 opacity-0 scale-95"}`} style={{ maxHeight: "min(75vh, 600px)" }}>
-        <div className={`flex items-center justify-between border-b px-5 py-4 ${dark ? "border-white/10" : "border-black/5"}`}>
+      <div className={`fixed right-8 bottom-28 z-[70] flex w-[min(100vw-4rem,500px)] flex-col overflow-hidden rounded-[2rem] border shadow-2xl transition-all duration-300 backdrop-blur-3xl ${dark ? "border-white/10 bg-[#0a0f24]/90 shadow-blue-900/20" : "border-slate-200/60 bg-white/90 shadow-slate-300/50"} ${open ? "translate-y-0 opacity-100 scale-100" : "pointer-events-none translate-y-8 opacity-0 scale-95"}`} style={{ maxHeight: "min(80vh, 700px)" }}>
+        
+        {/* Header - Minimal workspace feel */}
+        <div className={`flex items-center justify-between px-8 py-6 ${dark ? "border-white/5" : "border-slate-100"}`}>
           <div className="flex items-center gap-3">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-xl shadow-inner ${dark ? "bg-blue-500/20 text-blue-400" : "bg-blue-50 text-blue-600"}`}><Sparkles className="h-5 w-5" /></div>
-            <div>
-              <p className={`text-[15px] font-semibold tracking-tight ${t.textPrimary}`}>TASKR Copilot</p>
-              <p className={`text-[10px] font-bold tracking-wider uppercase opacity-60 ${t.textPrimary}`}>Autonomous OS</p>
-            </div>
+            <Sparkles className="h-5 w-5 text-blue-500" />
+            <h2 className={`text-lg font-bold tracking-tight ${t.textPrimary}`}>TASKR Copilot</h2>
           </div>
-          <button type="button" onClick={() => setOpen(false)} className={`rounded-full p-2 transition-colors hover:bg-black/5 dark:hover:bg-white/10`}><X className="h-4 w-4 opacity-70" /></button>
+          <button type="button" onClick={() => setOpen(false)} className={`rounded-full p-2 transition-colors hover:bg-black/5 dark:hover:bg-white/10`}><X className="h-5 w-5 opacity-50 hover:opacity-100 transition-opacity" /></button>
         </div>
-        <div className={`flex flex-wrap gap-2 border-b px-5 py-3 ${dark ? "border-white/5" : "border-black/5"}`}>
-          {QUICK_ACTIONS.map((a) => (
-            <button key={a.id} type="button" onClick={() => runQuery(a.label)} disabled={thinking} className={`rounded-xl border px-3 py-1.5 text-[11px] font-semibold transition-colors disabled:opacity-50 ${dark ? "border-blue-500/20 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20" : "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"}`}>
-              {a.label}
-            </button>
-          ))}
-        </div>
-        <div ref={feedRef} className="flex-1 space-y-4 overflow-y-auto px-5 py-4 scroll-smooth">
-          {messages.map((msg) => {
-            if (msg.role === "metrics") {
-              const { geminiCalls, toolCalls, executionTimeMs } = msg.text;
-              const saved = (toolCalls > 0 && geminiCalls === 0) ? "Local Router (0 API)" : null;
+
+        {/* Message Feed - Document format, no chat bubbles */}
+        <div ref={feedRef} className="flex-1 overflow-y-auto px-8 py-4 scroll-smooth">
+          <div className="space-y-10 pb-8">
+            {messages.map((msg) => {
+              if (msg.role === "metrics") return null;
               return (
-                <div key={msg.id} className="flex justify-center my-1">
-                  <div className={`rounded-lg px-3 py-1 text-[10px] font-mono border shadow-sm flex items-center gap-2 ${dark ? "bg-slate-800/50 border-white/5 text-slate-400" : "bg-white/50 border-black/5 text-slate-500"}`}>
-                    <span>⏱ {executionTimeMs}ms</span>
-                    <span>•</span>
-                    <span className={saved ? "text-green-500 font-bold" : ""}>🤖 {geminiCalls} API</span>
-                    <span>•</span>
-                    <span>🛠 {toolCalls} Tools</span>
-                    {saved && <><span className="text-green-500">•</span><span className="text-green-500 font-bold">{saved}</span></>}
+                <div key={msg.id} className="group flex flex-col gap-2">
+                  <span className={`text-[11px] font-bold uppercase tracking-wider ${msg.role === "user" ? "text-blue-500" : t.textMuted}`}>
+                    {msg.role === "user" ? "You" : "TASKR Copilot"}
+                  </span>
+                  <div className={`text-[14px] leading-relaxed whitespace-pre-wrap ${t.textPrimary}`}>
+                    {msg.text}
                   </div>
                 </div>
               );
-            }
-            return (
-              <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-[13px] leading-relaxed shadow-sm ${msg.role === "user" ? "bg-blue-600 text-white rounded-br-sm" : dark ? "bg-slate-800/90 text-slate-200 border border-white/10 rounded-bl-sm" : "bg-white text-slate-800 border border-slate-200 rounded-bl-sm"}`}>
-                  {msg.text}
+            })}
+            
+            {thinking && (
+              <div className="flex flex-col gap-2">
+                <span className={`text-[11px] font-bold uppercase tracking-wider ${t.textMuted}`}>TASKR Copilot</span>
+                <div className={`flex items-center gap-1.5 h-6`}>
+                  <div className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: "0ms" }}></div>
+                  <div className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: "150ms" }}></div>
+                  <div className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: "300ms" }}></div>
                 </div>
               </div>
-            );
-          })}
-          {thinking && (
-            <div className="flex justify-start">
-              <div className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-[13px] font-medium shadow-sm rounded-bl-sm ${dark ? "bg-slate-800/90 border-white/10 text-blue-400" : "bg-white border-slate-200 text-blue-600"}`}>
-                <div className="flex gap-1 items-center">
-                  <span className="h-2 w-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: "0ms" }}></span>
-                  <span className="h-2 w-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: "150ms" }}></span>
-                  <span className="h-2 w-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: "300ms" }}></span>
-                </div>
-                Processing Intent...
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-        <form onSubmit={(e) => { e.preventDefault(); runQuery(input); }} className={`flex items-center gap-2 border-t p-4 ${dark ? "border-white/10" : "border-black/5"}`}>
-          <input type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder='e.g. "Create 20 placeholder tasks"' disabled={thinking} className={`flex-1 rounded-xl border px-4 py-3 text-[13px] shadow-sm outline-none transition-all focus:ring-2 focus:ring-blue-500/30 disabled:opacity-50 ${dark ? "bg-slate-900/50 border-white/10 text-white placeholder-slate-500" : "bg-white/50 border-black/10 text-slate-900 placeholder-slate-400"}`} />
-          <button type="submit" disabled={!input.trim() || thinking} className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md transition-colors hover:bg-blue-700 disabled:opacity-40"><Send className="h-4 w-4" /></button>
-        </form>
+
+        {/* Floating Command Palette Input */}
+        <div className="px-6 pb-6 pt-2">
+          <form onSubmit={(e) => { e.preventDefault(); runQuery(input); }} className={`relative flex items-center overflow-hidden rounded-[1.5rem] border shadow-sm transition-all focus-within:ring-2 focus-within:ring-blue-500/30 focus-within:shadow-md ${dark ? "bg-[#161f42]/60 border-blue-500/20" : "bg-slate-50/80 border-slate-200"}`}>
+            <input type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type a command or ask a question..." disabled={thinking} className={`flex-1 bg-transparent px-6 py-4 text-[14px] outline-none disabled:opacity-50 ${dark ? "text-white placeholder-slate-500" : "text-slate-900 placeholder-slate-400"}`} />
+            <div className="pr-3 pl-2">
+              <button type="submit" disabled={!input.trim() || thinking} className={`flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white transition-all hover:bg-blue-700 disabled:opacity-40 disabled:hover:bg-blue-600 ${input.trim() && !thinking ? "scale-100 shadow-sm" : "scale-95"}`}>
+                <Send className="h-4 w-4" />
+              </button>
+            </div>
+          </form>
+          
+          <div className="mt-4 flex flex-wrap gap-2 px-2">
+            {QUICK_ACTIONS.map((a) => (
+              <button key={a.id} type="button" onClick={() => runQuery(a.label)} disabled={thinking} className={`rounded-full border px-3 py-1.5 text-[11px] font-medium transition-colors disabled:opacity-50 ${dark ? "border-blue-500/15 bg-transparent text-slate-400 hover:bg-blue-500/10 hover:text-blue-300" : "border-slate-200 bg-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-800"}`}>
+                {a.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
       </div>
     </>
   );
@@ -1878,9 +1459,13 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
-  const [reliabilityStore, setReliabilityStore] = useState({});
+  const [matrixHeight, setMatrixHeight] = useState(500);
+
   const [dbStatus, setDbStatus] = useState("checking");
   const [sessionStart] = useState(() => Date.now());
+  const [financeDocName, setFinanceDocName] = useState(() => {
+    return localStorage.getItem("taskr_finance_doc_name") || "";
+  });
   const [uptime, setUptime] = useState("00:00:00");
   const [alertConfig, setAlertConfig] = useState(null);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
@@ -1913,6 +1498,14 @@ export default function App() {
   );
   const hasActiveFilters = priorityFilter !== "all" || dateFilter !== "all";
 
+  const canvasRef = useRef(null);
+  const filteredTaskIds = useMemo(() => filteredTasks.map(t => String(t.id)), [filteredTasks]);
+  const stickerInteractions = useStickerInteractions(
+    filteredTaskIds,
+    userId,
+    canvasRef.current?.offsetWidth || 800
+  );
+
   const fetchTasks = useCallback(async () => {
     if (!userId) return;
     setIsLoading(true);
@@ -1925,7 +1518,7 @@ export default function App() {
     } else {
       setTasks(sortByDeadline((data ?? []).map((row) => mapSupabaseTask(row, meta))));
       setDbStatus("connected");
-      setReliabilityStore(readReliabilityStore(userId));
+
     }
     setIsLoading(false);
   }, [userId]);
@@ -1947,10 +1540,8 @@ export default function App() {
   useEffect(() => {
     if (userId) {
       fetchTasks();
-      setReliabilityStore(readReliabilityStore(userId));
     } else {
       setTasks([]);
-      setReliabilityStore({});
     }
   }, [userId, fetchTasks]);
 
@@ -2023,11 +1614,11 @@ export default function App() {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setTasks([]);
-    setReliabilityStore({});
+
     setActiveScreen("workspace");
   };
 
-  const handleCreateTask = useCallback(async (manualTitle, rawInput, deadlineStr, urgencyLevelId, userSubTasks = []) => {
+  const handleCreateTask = useCallback(async (manualTitle, rawInput, deadlineStr, stickerColor, userSubTasks = []) => {
     if (!userId) return;
     setIsSubmitting(true);
     setError(null);
@@ -2066,8 +1657,6 @@ export default function App() {
       }
 
       const deadline = toIsoDeadline(deadlineStr);
-      const urgencyScore = urgencyScoreFromLevel(urgencyLevelId);
-      const urgencyLabel = urgencyLabelFromLevel(urgencyLevelId);
       const plannedDate = dateKey(new Date(deadline));
 
       const subTasksPayload = userSubTasks.length > 0
@@ -2079,7 +1668,7 @@ export default function App() {
         title: smartTitle,
         raw_input: rawInput,
         deadline,
-        urgency_score: urgencyScore,
+        urgency_score: 5,
         sub_tasks: subTasksPayload,
         is_completed: false,
       }]).select();
@@ -2088,9 +1677,10 @@ export default function App() {
 
       if (insertedData && insertedData.length > 0) {
         const freshTaskFromCloud = insertedData[0];
-        const store = registerTaskPlanned(userId, freshTaskFromCloud.id, plannedDate, urgencyLabel);
-        setReliabilityStore({ ...store });
-        setTasks((prev) => sortByDeadline([mapSupabaseTask(freshTaskFromCloud, readTaskMeta(userId)), ...prev]));
+        const meta = readTaskMeta(userId);
+        meta[freshTaskFromCloud.id] = { color: stickerColor, plannedDate, createdAt: Date.now() };
+        writeTaskMeta(userId, meta);
+        setTasks((prev) => sortByDeadline([mapSupabaseTask(freshTaskFromCloud, meta), ...prev]));
       }
     } catch (err) {
       setError(err.message || "Failed to create sticker.");
@@ -2106,29 +1696,28 @@ export default function App() {
     const task = tasks.find((tk) => tk.id === taskId);
     if (!task) return;
     
-    const urgencyScore = urgencyScoreFromLevel(updates.urgencyLevelId);
-    const urgencyLabel = urgencyLabelFromLevel(updates.urgencyLevelId);
-    
+    // Save new color to metadata
+    const meta = readTaskMeta(userId);
+    meta[taskId] = { ...meta[taskId], color: updates.color };
+    writeTaskMeta(userId, meta);
+
     setTasks(prev => prev.map(tk => tk.id === taskId ? {
       ...tk,
       title: updates.title,
       rawInput: updates.rawInput,
-      urgencyScore,
-      urgencyLabel
+      stickerColor: updates.color
     } : tk));
 
     const { data, error: updateError } = await supabase.from("tasks")
       .update({
         title: updates.title,
-        raw_input: updates.rawInput,
-        urgency_score: urgencyScore
+        raw_input: updates.rawInput
       })
       .eq("id", taskId).eq("user_id", userId).select().single();
       
     if (updateError) {
       setError(updateError.message);
     } else {
-      const meta = readTaskMeta(userId);
       setTasks((prev) => prev.map((tk) => tk.id === taskId ? mapSupabaseTask(data, meta) : tk));
     }
   }, [userId, tasks]);
@@ -2154,10 +1743,7 @@ export default function App() {
       return;
     }
 
-    if (allDone) {
-      const store = registerTaskCompleted(userId, taskId);
-      setReliabilityStore({ ...store });
-    }
+
 
     const meta = readTaskMeta(userId);
     setTasks((prev) => sortByDeadline(prev.map((tk) => tk.id === taskId ? mapSupabaseTask(data, meta) : tk)));
@@ -2175,8 +1761,6 @@ export default function App() {
               setError(deleteError.message);
             } else {
               setTasks((prev) => prev.filter((tk) => tk.id !== taskId));
-              // Recalculate reliability
-              setReliabilityStore({ ...readReliabilityStore(userId) });
             }
           },
           true
@@ -2196,8 +1780,6 @@ export default function App() {
       setTasks(previous);
       setError(deleteError.message);
     } else {
-      // Recalculate reliability after deletion
-      setReliabilityStore({ ...readReliabilityStore(userId) });
     }
   }, [tasks, userId]);
 
@@ -2212,9 +1794,7 @@ export default function App() {
         if (deleteError) setError(deleteError.message);
         else {
           setTasks([]);
-          writeReliabilityStore(userId, {});
           writeTaskMeta(userId, {});
-          setReliabilityStore({});
         }
       },
       true
@@ -2297,13 +1877,18 @@ export default function App() {
         }
       }
     }
-    // Recalculate reliability after AI actions
-    setReliabilityStore({ ...readReliabilityStore(userId) });
+
     return summaries.join("\n") || "Actions completed.";
   }, [tasks, userId]);
 
   const handleAgentMessage = useCallback(async (message) => {
     if (!userId) return "Please sign in first.";
+
+    const localResponse = routeLocalIntent(message, tasksRef.current);
+    if (localResponse) {
+      return localResponse;
+    }
+
     const taskSummary = tasksRef.current.map((t) => ({
       id: t.id,
       title: t.title,
@@ -2356,10 +1941,8 @@ export default function App() {
         .eq("id", task.id).eq("user_id", userId).select().single();
       if (updErr) results.push(`Failed: ${task.title}`);
       else {
-        const store = registerTaskRescheduled(userId, task.id, fromDate, toDate);
-        setReliabilityStore({ ...store });
         const meta = readTaskMeta(userId);
-        meta[task.id] = { ...meta[task.id], urgencyLabel: "Important" };
+        meta[task.id] = { ...meta[task.id], plannedDate: toDate, urgencyLabel: "Important" };
         writeTaskMeta(userId, meta);
         setTasks((prev) => sortByDeadline(prev.map((tk) => tk.id === task.id ? mapSupabaseTask(data, meta) : tk)));
         results.push(`"${task.title}" → +24h, now Important`);
@@ -2380,10 +1963,28 @@ export default function App() {
 
   if (!session) return <AuthScreen onAuthenticated={setSession} t={t} />;
 
+  const screenTitles = {
+    workspace: "Workspace",
+    sticker: "Sticker Matrix",
+    settings: "Settings",
+    finance: "Finance",
+    table: "Table",
+    draw: "Draw",
+    flow: "Flow"
+  };
+
   return (
-    <div className={`min-h-screen ${t.shell}`}>
+    <div className={`min-h-screen flex flex-col ${t.shell}`}>
       <Toaster position="top-right" theme={dark ? "dark" : "light"} />
-      <DashboardHeader email={email} fullName={fullName} t={t} onSignOut={handleSignOut} />
+      <AppHeader 
+        email={email} 
+        fullName={fullName} 
+        t={t} 
+        dark={dark}
+        onSignOut={handleSignOut}
+        onMenuClick={() => setSidebarOpen(true)}
+        title={screenTitles[activeScreen] || "TASKR"}
+      />
       <SidebarMenu
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -2393,43 +1994,63 @@ export default function App() {
         dark={dark}
       />
 
-      <div className="relative overflow-hidden">
-        <div className="flex transition-transform duration-500 ease-in-out" style={{ width: "200%", transform: activeScreen === "settings" ? "translateX(-50%)" : "translateX(0)" }}>
-          <div className="w-1/2 shrink-0">
-            <ClickSpark sparkColor="#2563eb" sparkCount={10} duration={400}>
-              <main className="mx-auto max-w-7xl px-4 py-6 pb-28 sm:px-6 lg:px-8">
-                {error && <StatusBanner message={error} dark={dark} onDismiss={() => setError(null)} />}
-                <div className="mb-6 flex w-full items-center gap-4">
-                  <div className={`shrink-0 rounded-2xl border p-3 shadow-sm ${dark ? "border-blue-500/20 bg-[#161f42]/80" : "border-gray-100 bg-white"}`}>
-                    <button
-                      type="button"
-                      onClick={() => setSidebarOpen((v) => !v)}
-                      className={`inline-flex items-center rounded-lg p-1.5 transition-colors ${t.textMuted} hover:text-blue-500`}
-                      aria-label="Toggle navigation"
-                    >
-                      <Menu className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <div className={`flex-1 rounded-2xl px-5 py-4 ${t.cardMuted}`}>
-                    <p className="text-xs font-bold tracking-wide text-blue-500 uppercase">Welcome back, {username || "there"}</p>
-                    <h2 className={`mt-1 text-xl font-bold sm:text-2xl ${t.textPrimary}`}>Sticker board</h2>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-                  <div className="space-y-6 lg:col-span-4">
-                    <PanicDump t={t} onSubmit={handleCreateTask} isSubmitting={isSubmitting} selectedDate={selectedDate} />
-                    <ConsistencyBoard tasks={tasks} dark={dark} t={t} />
-                  </div>
-                  <div className="lg:col-span-8">
-                    <h2 className={`mb-4 text-sm font-bold ${t.textPrimary}`}>Sticker Matrix</h2>
-                    <TaskFilterBar
-                      priorityFilter={priorityFilter}
-                      dateFilter={dateFilter}
-                      onPriorityChange={setPriorityFilter}
-                      onDateChange={setDateFilter}
+      <div className="relative w-full h-full">
+        {activeScreen === "workspace" && (
+          <ClickSpark sparkColor="#2563eb" sparkCount={10} duration={400}>
+            <main className={`mx-auto max-w-7xl px-4 py-6 pb-28 sm:px-6 lg:px-8 mt-2 lg:mt-6 mb-6 rounded-[2.5rem] relative
+              before:absolute before:inset-0 before:-z-10 before:rounded-[2.5rem] 
+              before:shadow-[0_0_80px_-15px_rgba(59,130,246,0.15)] 
+              before:ring-1 before:ring-blue-500/10 
+              ${dark ? "before:bg-[#0a0f24]" : "before:bg-white"}
+              transition-all duration-500`}>
+              {error && <StatusBanner message={error} dark={dark} onDismiss={() => setError(null)} />}
+              
+              <WorkspaceHero username={username} t={t} dark={dark} />
+              
+              <DashboardSection title="Active Projects" t={t}>
+                <ProjectGrid>
+                  <ProjectCard 
+                    project={{ name: "Startup Roadmap", lastUpdated: "recently", taskCount: tasks.length, type: "Sticker Workspace" }}
+                    onClick={() => setActiveScreen("sticker")}
+                    t={t}
+                    dark={dark}
+                  />
+                  {financeDocName && (
+                    <ProjectCard 
+                      project={{ name: financeDocName, lastUpdated: "recently", taskCount: "Active", type: "Finance Workspace" }}
+                      onClick={() => setActiveScreen("finance")}
                       t={t}
                       dark={dark}
                     />
+                  )}
+                </ProjectGrid>
+              </DashboardSection>
+            </main>
+          </ClickSpark>
+        )}
+
+        {activeScreen === "sticker" && (
+          <ClickSpark sparkColor="#2563eb" sparkCount={10} duration={400}>
+            <main className="mx-auto max-w-7xl px-4 py-6 pb-28 sm:px-6 lg:px-8">
+              {error && <StatusBanner message={error} dark={dark} onDismiss={() => setError(null)} />}
+
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+                <div className="space-y-6 lg:col-span-4">
+                  <PanicDump t={t} onSubmit={handleCreateTask} isSubmitting={isSubmitting} selectedDate={selectedDate} />
+                </div>
+                <div className="lg:col-span-8 flex flex-col">
+                  <h2 className={`mb-4 text-sm font-bold shrink-0 ${t.textPrimary}`}>Sticker Matrix</h2>
+                  <StickerWorkspace
+                    dark={dark}
+                    t={t}
+                    taskCount={filteredTasks.length}
+                    hasActiveFilters={hasActiveFilters}
+                    maxBottom={stickerInteractions.maxBottom}
+                    canvasRef={canvasRef}
+                    onCanvasClick={stickerInteractions.deselectAll}
+                    height={matrixHeight}
+                    onHeightChange={setMatrixHeight}
+                  >
                     <StickerGrid
                       tasks={filteredTasks}
                       t={t}
@@ -2440,23 +2061,61 @@ export default function App() {
                       onDelete={handleDelete}
                       onEdit={handleEditTask}
                       currentTime={currentTime}
-                      hasActiveFilters={hasActiveFilters}
+                      layout={stickerInteractions.layout}
+                      selectedId={stickerInteractions.selectedId}
+                      activeId={stickerInteractions.activeId}
+                      isDragging={stickerInteractions.isDragging}
+                      onDragStart={stickerInteractions.startDrag}
+                      onResizeStart={stickerInteractions.startResize}
+                      onBringToFront={stickerInteractions.bringToFront}
                     />
-                    <CalendarGrid tasks={tasks} t={t} dark={dark} onDayClick={setSelectedDate} />
-                  </div>
+                  </StickerWorkspace>
                 </div>
-              </main>
-            </ClickSpark>
+              </div>
+            </main>
+          </ClickSpark>
+        )}
+
+        {activeScreen === "settings" && (
+          <SettingsScreen dark={dark} setDark={setDark} t={t} onResetAll={handleResetAll} isResetting={isResetting} dbStatus={dbStatus} uptime={uptime} taskCount={tasks.length} onMenuClick={() => setSidebarOpen(true)} />
+        )}
+
+        {activeScreen === "finance" && (
+          <FinanceWorkspace 
+            t={t} 
+            dark={dark} 
+            onSave={(name) => {
+              setFinanceDocName(name);
+              localStorage.setItem("taskr_finance_doc_name", name);
+            }} 
+          />
+        )}
+
+        {["table", "draw", "flow"].includes(activeScreen) && (
+          <div className="mx-auto max-w-7xl px-4 py-6 pb-28 sm:px-6 lg:px-8 min-h-[60vh] flex flex-col items-center justify-center relative">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              className={`absolute top-6 left-4 inline-flex items-center rounded-lg p-3 transition-colors border shadow-sm ${dark ? "border-blue-500/20 bg-[#161f42]/80 text-slate-400 hover:text-blue-500" : "border-slate-200 bg-white text-slate-500 hover:text-blue-500"}`}
+            >
+              <Menu className="h-4 w-4" />
+            </button>
+            <div className={`rounded-3xl border border-dashed p-12 text-center max-w-md ${dark ? "border-slate-700 bg-slate-900/50" : "border-slate-300 bg-slate-50"}`}>
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-500/10 mb-4">
+                <Sparkles className="h-8 w-8 text-blue-500" />
+              </div>
+              <h2 className={`mb-2 text-xl font-bold capitalize ${t.textPrimary}`}>{activeScreen} Workspace</h2>
+              <p className={`text-sm leading-relaxed ${t.textMuted}`}>
+                The {activeScreen} module is currently under construction. Please check back in a future update.
+              </p>
+            </div>
           </div>
-          <div className="w-1/2 shrink-0">
-            <SettingsScreen dark={dark} setDark={setDark} t={t} onResetAll={handleResetAll} isResetting={isResetting} dbStatus={dbStatus} uptime={uptime} taskCount={tasks.length} />
-          </div>
-        </div>
+        )}
       </div>
 
       <CustomAlertModal config={alertConfig} onClose={() => setAlertConfig(null)} dark={dark} />
 
-      {activeScreen === "workspace" && (
+      {activeScreen === "sticker" && (
         <AiAssistantDrawer tasks={tasks} t={t} dark={dark} onExecuteActions={handleExecuteActions} onRunAgent={handleAgentMessage} />
       )}
     </div>
