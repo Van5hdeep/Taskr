@@ -45,7 +45,12 @@ import WorkspaceHero from "./components/dashboard/WorkspaceHero";
 import ProjectCard from "./components/dashboard/ProjectCard";
 import ProjectGrid from "./components/dashboard/ProjectGrid";
 import DashboardSection from "./components/dashboard/DashboardSection";
+
+
+import WorkspaceSaveModal from "./components/WorkspaceSaveModal";
+import SaveButton from "./components/ui/SaveButton";
 import FinanceWorkspace from "./components/finance/FinanceWorkspace";
+import TableWorkspace from "./components/table/TableWorkspace";
 
 // ─── Custom Alert Modal ────────────────────────────────────────────────────────
 
@@ -1158,9 +1163,7 @@ function StickerCard({ task, dark, t, onToggleSubTask, onDelete, onEdit, isDelet
             ))}
           </div>
 
-          <button onClick={handleSave} className="mt-2 bg-blue-500 text-white rounded-lg p-2 text-xs font-bold flex items-center justify-center gap-1 hover:bg-blue-600 transition-colors">
-            <Save className="h-3 w-3" /> Save Changes
-          </button>
+          <SaveButton onClick={handleSave} className="mt-2 w-full" />
         </div>
       ) : (
         <>
@@ -1463,13 +1466,28 @@ export default function App() {
 
   const [dbStatus, setDbStatus] = useState("checking");
   const [sessionStart] = useState(() => Date.now());
-  const [financeDocName, setFinanceDocName] = useState(() => {
-    return localStorage.getItem("taskr_finance_doc_name") || "";
+  const [savedWorkspaces, setSavedWorkspaces] = useState(() => {
+    return JSON.parse(localStorage.getItem("taskr_saved_workspaces") || "[]");
   });
   const [uptime, setUptime] = useState("00:00:00");
   const [alertConfig, setAlertConfig] = useState(null);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showSaveSticker, setShowSaveSticker] = useState(false);
+
+  const handleSaveWorkspace = useCallback((id, name, type) => {
+    setSavedWorkspaces(prev => {
+      const existing = prev.find(ws => ws.id === id);
+      let updated;
+      if (existing) {
+        updated = prev.map(ws => ws.id === id ? { ...ws, name, lastUpdated: "just now" } : ws);
+      } else {
+        updated = [...prev, { id, name, type, lastUpdated: "just now" }];
+      }
+      localStorage.setItem("taskr_saved_workspaces", JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
   
   const tasksRef = useRef(tasks);
   useEffect(() => {
@@ -2009,20 +2027,20 @@ export default function App() {
               
               <DashboardSection title="Active Projects" t={t}>
                 <ProjectGrid>
-                  <ProjectCard 
-                    project={{ name: "Startup Roadmap", lastUpdated: "recently", taskCount: tasks.length, type: "Sticker Workspace" }}
-                    onClick={() => setActiveScreen("sticker")}
-                    t={t}
-                    dark={dark}
-                  />
-                  {financeDocName && (
+                  {savedWorkspaces.length === 0 && (
+                    <div className={`col-span-full py-8 text-center text-sm ${t.textMuted}`}>
+                      No workspaces saved yet. Open a workspace and click Save!
+                    </div>
+                  )}
+                  {savedWorkspaces.map(ws => (
                     <ProjectCard 
-                      project={{ name: financeDocName, lastUpdated: "recently", taskCount: "Active", type: "Finance Workspace" }}
-                      onClick={() => setActiveScreen("finance")}
+                      key={ws.id}
+                      project={{ name: ws.name, lastUpdated: ws.lastUpdated, taskCount: "Active", type: ws.type }}
+                      onClick={() => setActiveScreen(ws.id)}
                       t={t}
                       dark={dark}
                     />
-                  )}
+                  ))}
                 </ProjectGrid>
               </DashboardSection>
             </main>
@@ -2039,7 +2057,12 @@ export default function App() {
                   <PanicDump t={t} onSubmit={handleCreateTask} isSubmitting={isSubmitting} selectedDate={selectedDate} />
                 </div>
                 <div className="lg:col-span-8 flex flex-col">
-                  <h2 className={`mb-4 text-sm font-bold shrink-0 ${t.textPrimary}`}>Sticker Matrix</h2>
+                  <div className="flex items-center justify-between mb-4 shrink-0">
+                    <h2 className={`text-sm font-bold ${t.textPrimary}`}>Sticker Matrix</h2>
+                    <SaveButton
+                      onClick={() => setShowSaveSticker(true)}
+                    />
+                  </div>
                   <StickerWorkspace
                     dark={dark}
                     t={t}
@@ -2084,14 +2107,19 @@ export default function App() {
           <FinanceWorkspace 
             t={t} 
             dark={dark} 
-            onSave={(name) => {
-              setFinanceDocName(name);
-              localStorage.setItem("taskr_finance_doc_name", name);
-            }} 
+            onSave={(name) => handleSaveWorkspace("finance", name, "Finance Workspace")}
           />
         )}
 
-        {["table", "draw", "flow"].includes(activeScreen) && (
+        {activeScreen === "table" && (
+          <TableWorkspace
+            t={t}
+            dark={dark}
+            onSave={(name) => handleSaveWorkspace("table", name, "Table Workspace")}
+          />
+        )}
+
+        {["draw", "flow"].includes(activeScreen) && (
           <div className="mx-auto max-w-7xl px-4 py-6 pb-28 sm:px-6 lg:px-8 min-h-[60vh] flex flex-col items-center justify-center relative">
             <button
               type="button"
@@ -2117,6 +2145,19 @@ export default function App() {
 
       {activeScreen === "sticker" && (
         <AiAssistantDrawer tasks={tasks} t={t} dark={dark} onExecuteActions={handleExecuteActions} onRunAgent={handleAgentMessage} />
+      )}
+      
+      {showSaveSticker && (
+        <WorkspaceSaveModal
+          t={t}
+          dark={dark}
+          defaultName={savedWorkspaces.find(ws => ws.id === "sticker")?.name || "Startup Roadmap"}
+          onSave={(name) => {
+            handleSaveWorkspace("sticker", name, "Sticker Workspace");
+            setShowSaveSticker(false);
+          }}
+          onCancel={() => setShowSaveSticker(false)}
+        />
       )}
     </div>
   );
