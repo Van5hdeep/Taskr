@@ -4,9 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 const STORAGE_KEY_PREFIX = "taskr_sticker_layout_";
 const MIN_WIDTH = 260;
-const MIN_HEIGHT = 180;
+const MIN_HEIGHT = 160;
 const DEFAULT_WIDTH = 300;
-const DEFAULT_HEIGHT = 280;
+const DEFAULT_HEIGHT = 240;
 const GRID_COLS = 3;
 const GRID_GAP = 20;
 const GRID_PADDING = 10;

@@ -6,17 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview",
-    "server": "node server.js",
-    "start": "node server.js"
+    "preview": "vite preview"
   },
   "dependencies": {
-    "@google/genai": "^2.10.0",
+    "@excalidraw/excalidraw": "^0.18.1",
     "@supabase/supabase-js": "^2.108.2",
     "animejs": "^4.5.0",
-    "cors": "^2.8.6",
-    "dotenv": "^16.6.1",
-    "express": "^5.2.1",
     "gsap": "^3.15.0",
     "lucide-react": "^0.525.0",
     "react": "^19.1.0",

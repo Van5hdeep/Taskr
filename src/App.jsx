@@ -1,26 +1,23 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
+  ArrowRight,
   Calendar,
   Check,
   CheckCircle,
+  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Database,
   LayoutGrid,
   Loader2,
   LogIn,
   LogOut,
   Menu,
-  Moon,
   Plus,
   Pencil,
   Save,
-  Send,
-  Settings,
   Sparkles,
-  Sun,
   Trash2,
   UserPlus,
   X,
@@ -37,20 +34,18 @@ import BorderGlow from "./components/BorderGlow/BorderGlow";
 import StickerWorkspace from "./components/StickerWorkspace";
 import useStickerInteractions from "./hooks/useStickerInteractions";
 import { Toaster, toast } from "sonner";
-import { handleChatMessage } from "./chat/handler";
-import { routeLocalIntent } from "./chat/LocalIntentRouter";
-import { GoogleGenAI } from "@google/genai";
 import AppHeader from "./components/layout/AppHeader";
-import WorkspaceHero from "./components/dashboard/WorkspaceHero";
-import ProjectCard from "./components/dashboard/ProjectCard";
-import ProjectGrid from "./components/dashboard/ProjectGrid";
-import DashboardSection from "./components/dashboard/DashboardSection";
+import DashboardHome from "./components/dashboard/DashboardHome";
+import BrandLogo from "./components/BrandLogo";
+import LandingPage from "./components/landing/LandingPage";
 
 
 import WorkspaceSaveModal from "./components/WorkspaceSaveModal";
 import SaveButton from "./components/ui/SaveButton";
 import FinanceWorkspace from "./components/finance/FinanceWorkspace";
 import TableWorkspace from "./components/table/TableWorkspace";
+
+const FlowWorkspace = lazy(() => import("./components/flow/FlowWorkspace"));
 
 // ─── Custom Alert Modal ────────────────────────────────────────────────────────
 
@@ -92,23 +87,16 @@ const JUDGE_EMAIL = "judge12@gmail.com";
 const JUDGE_PASSWORD = "judge123";
 
 const TASK_META_PREFIX = "tasker_task_meta_";
-const GEMINI_MODEL = "gemini-2.5-flash";
-
 const STICKER_COLORS = [
-  { id: "yellow", label: "Yellow", class: "bg-yellow-100 text-yellow-900 border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-200 dark:border-yellow-700/50" },
-  { id: "blue", label: "Blue", class: "bg-blue-100 text-blue-900 border-blue-300 dark:bg-blue-900/40 dark:text-blue-200 dark:border-blue-700/50" },
-  { id: "green", label: "Green", class: "bg-green-100 text-green-900 border-green-300 dark:bg-green-900/40 dark:text-green-200 dark:border-green-700/50" },
-  { id: "pink", label: "Pink", class: "bg-pink-100 text-pink-900 border-pink-300 dark:bg-pink-900/40 dark:text-pink-200 dark:border-pink-700/50" },
-  { id: "orange", label: "Orange", class: "bg-orange-100 text-orange-900 border-orange-300 dark:bg-orange-900/40 dark:text-orange-200 dark:border-orange-700/50" },
-  { id: "purple", label: "Purple", class: "bg-purple-100 text-purple-900 border-purple-300 dark:bg-purple-900/40 dark:text-purple-200 dark:border-purple-700/50" },
-  { id: "grey", label: "Grey", class: "bg-slate-100 text-slate-900 border-slate-300 dark:bg-slate-900/40 dark:text-slate-200 dark:border-slate-700/50" },
-  { id: "white", label: "White", class: "bg-white text-zinc-900 border-zinc-200 dark:bg-[#161f42] dark:text-slate-200 dark:border-blue-500/20" },
-];
-
-const QUICK_ACTIONS = [
-  { id: "top-priority", label: "What is my top priority?" },
-  { id: "get-started", label: "How do I get started?" },
-  { id: "reschedule-critical", label: "Reschedule critical items" },
+  { id: "red", label: "Red", hex: "#ef4444", class: "bg-red-100 text-red-900 border-red-300 dark:bg-red-900/40 dark:text-red-100 dark:border-red-700/50" },
+  { id: "yellow", label: "Yellow", hex: "#eab308", class: "bg-yellow-100 text-yellow-900 border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-200 dark:border-yellow-700/50" },
+  { id: "blue", label: "Blue", hex: "#2563eb", class: "bg-blue-100 text-blue-900 border-blue-300 dark:bg-blue-900/40 dark:text-blue-200 dark:border-blue-700/50" },
+  { id: "green", label: "Green", hex: "#16a34a", class: "bg-green-100 text-green-900 border-green-300 dark:bg-green-900/40 dark:text-green-200 dark:border-green-700/50" },
+  { id: "orange", label: "Orange", hex: "#f97316", class: "bg-orange-100 text-orange-900 border-orange-300 dark:bg-orange-900/40 dark:text-orange-200 dark:border-orange-700/50" },
+  { id: "purple", label: "Purple", hex: "#8b5cf6", class: "bg-purple-100 text-purple-900 border-purple-300 dark:bg-purple-900/40 dark:text-purple-200 dark:border-purple-700/50" },
+  { id: "pink", label: "Pink", hex: "#ec4899", class: "bg-pink-100 text-pink-900 border-pink-300 dark:bg-pink-900/40 dark:text-pink-200 dark:border-pink-700/50" },
+  { id: "grey", label: "Grey", hex: "#64748b", class: "bg-slate-100 text-slate-900 border-slate-300 dark:bg-slate-900/40 dark:text-slate-200 dark:border-slate-700/50" },
+  { id: "white", label: "White", hex: "#f8fafc", class: "bg-white text-zinc-900 border-zinc-200 dark:bg-[#161f42] dark:text-slate-200 dark:border-blue-500/20" },
 ];
 
 const PRIORITY_FILTERS = [
@@ -165,12 +153,6 @@ function useTheme(dark) {
       authToggle: dark
         ? "border-blue-500/15 bg-[#0d1530]/90"
         : "border-zinc-100 bg-zinc-50",
-      chatPanel: dark
-        ? "border-blue-500/20 bg-[#161f42]/95 shadow-black/50"
-        : "border-zinc-100 bg-white shadow-blue-900/10",
-      chatBubble: dark
-        ? "border-blue-500/15 bg-[#0d1530]/90 text-slate-300"
-        : "border-zinc-100 bg-zinc-50 text-zinc-700",
     }),
     [dark]
   );
@@ -264,201 +246,27 @@ function ClickSpark({
   );
 }
 
-// ─── Gemini ────────────────────────────────────────────────────────────────────
-
-function getGeminiKey() {
-  return import.meta.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
-}
-
-async function callGemini(systemInstruction, userText, maxTokens = 256) {
-  const apiKey = getGeminiKey();
-  if (!apiKey) return null;
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemInstruction }] },
-          contents: [{ role: "user", parts: [{ text: userText }] }],
-          generationConfig: { maxOutputTokens: maxTokens, temperature: 0.35 },
-        }),
-      }
-    );
-    if (!response.ok) return null;
-    const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? null;
-  } catch {
-    return null;
+function formatAuthError(error) {
+  const message = String(error?.message || error || "Unable to authenticate.");
+  if (/failed to fetch|network|fetch/i.test(message)) {
+    return "Cannot reach Supabase. Check that VITE_SUPABASE_URL points to a live Supabase project and restart the dev server.";
   }
+  return message;
 }
 
-const GEMINI_TOOL_DECLARATIONS = [
-  {
-    name: "createPlaceholderTasks",
-    description: "Creates N number of empty or boilerplate tasks.",
-    parameters: {
-      type: "OBJECT",
-      properties: {
-        count: { type: "NUMBER", description: "How many placeholder tasks to create." },
-        initialPriority: { type: "STRING", description: "Optional initial priority: Urgent, Important, or Not Important." },
-      },
-      required: ["count"],
-    },
-  },
-  {
-    name: "updateTaskDeadlineByTitle",
-    description: "Modifies the deadline string for a specific task.",
-    parameters: {
-      type: "OBJECT",
-      properties: {
-        taskTitle: { type: "STRING", description: "Task title to match (exact or close match)." },
-        targetDateISO: { type: "STRING", description: "New target deadline as ISO date or natural text." },
-      },
-      required: ["taskTitle", "targetDateISO"],
-    },
-  },
-  {
-    name: "updateTaskPriorityByTitle",
-    description: "Changes a task's priority level based on color theory parameters.",
-    parameters: {
-      type: "OBJECT",
-      properties: {
-        taskTitle: { type: "STRING", description: "Task title to match (exact or close match)." },
-        newPriority: { type: "STRING", description: "New priority: Urgent, Important, or Not Important." },
-      },
-      required: ["taskTitle", "newPriority"],
-    },
-  },
-];
+function createTaskTitle(description) {
+  const cleaned = String(description || "")
+    .trim()
+    .replace(/[.,\/#!$%\^&\*;:{}=\-_\u0060~()]/g, "");
+  const words = cleaned.split(/\s+/).filter((word) => word.length > 2);
+  if (!words.length) return "Quick Task";
 
-async function runGeminiWithToolCalling(userMessage, executeTool, taskSummary) {
-  const apiKey = getGeminiKey();
-  if (!apiKey) return null;
-
-  const systemInstruction = `You are TASKR AI with function-calling.
-Available tools: createPlaceholderTasks, updateTaskDeadlineByTitle, updateTaskPriorityByTitle.
-When user asks to create placeholders, call createPlaceholderTasks with count and optional initialPriority.
-When user asks deadline changes like "tomorrow", call updateTaskDeadlineByTitle.
-When user asks to change a task's urgency/priority, call updateTaskPriorityByTitle.
-Always prefer tool calls for task mutations.
-Current tasks summary: ${JSON.stringify(taskSummary)}`;
-
-  const contents = [{ role: "user", parts: [{ text: userMessage }] }];
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
-
-  const aggregatedToolSummaries = [];
-
-  for (let i = 0; i < 4; i++) {
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemInstruction }] },
-        contents,
-        tools: [{ functionDeclarations: GEMINI_TOOL_DECLARATIONS }],
-        generationConfig: { maxOutputTokens: 350, temperature: 0.25 },
-      }),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const modelParts = data?.candidates?.[0]?.content?.parts ?? [];
-    const functionCalls = modelParts.filter((p) => p.functionCall);
-
-    if (!functionCalls.length) {
-      const text = modelParts.map((p) => p.text).filter(Boolean).join("\n").trim();
-      return {
-        reply: text || (aggregatedToolSummaries.length ? "I've completed the requested task updates." : "Done."),
-        toolSummaries: aggregatedToolSummaries,
-      };
-    }
-
-    contents.push({ role: "model", parts: modelParts });
-    for (const part of functionCalls) {
-      const { name, args } = part.functionCall;
-      const result = await executeTool(name, args || {});
-      aggregatedToolSummaries.push(result.summary);
-      contents.push({
-        role: "user",
-        parts: [{
-          functionResponse: {
-            name,
-            response: { result },
-          },
-        }],
-      });
-    }
-
-    if (aggregatedToolSummaries.length && i === 3) {
-      return {
-        reply: "I've completed the requested task updates.",
-        toolSummaries: aggregatedToolSummaries,
-      };
-    }
-  }
-
-  return null;
-}
-
-async function generateGeminiTitle(description) {
-  const prompt =
-    "Generate a punchy, highly descriptive 3-5 word title summarizing the following task context. Output ONLY the raw title without quotation marks or conversation.";
-  const result = await callGemini(prompt, description, 40);
-  if (result) return result.replace(/^["'""]+|["'""]+$/g, "").trim().slice(0, 60);
-  const cleaned = description.replace(/\s+/g, " ").trim();
-  return cleaned.split(/\s+/).slice(0, 5).join(" ").slice(0, 48) || "New Task";
-}
-
-// ─── Urgency helpers ───────────────────────────────────────────────────────────
-
-function urgencyScoreFromLevel(levelId) {
-  return URGENCY_LEVELS.find((l) => l.id === levelId)?.score ?? 6;
-}
-
-function urgencyLabelFromLevel(levelId) {
-  return URGENCY_LEVELS.find((l) => l.id === levelId)?.label ?? "Important";
-}
-
-function urgencyLabelFromScore(score) {
-  if (score >= 8) return "Urgent";
-  if (score >= 5) return "Important";
-  return "Not Important";
-}
-
-function normalizePriorityToLevelId(priority) {
-  const p = String(priority || "").toLowerCase().trim();
-  if (p.includes("urgent") || p.includes("red")) return "urgent";
-  if (p.includes("not important") || p.includes("green") || p.includes("low")) return "not-important";
-  return "important";
-}
-
-function resolveDeadlineText(input) {
-  const raw = String(input || "").trim().toLowerCase();
-  const now = new Date();
-  if (!raw) return new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
-  if (raw === "tomorrow") {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    d.setHours(9, 0, 0, 0);
-    return d.toISOString();
-  }
-  const parsed = new Date(input);
-  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
-  return new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
-}
-
-function findBestTaskByTitle(tasks, title) {
-  const needle = String(title || "").toLowerCase().trim();
-  if (!needle) return null;
-  const exact = tasks.find((t) => t.title.toLowerCase() === needle);
-  if (exact) return exact;
-  const contains = tasks.find((t) => t.title.toLowerCase().includes(needle) || needle.includes(t.title.toLowerCase()));
-  if (contains) return contains;
-  return tasks.find((t) => {
-    const words = needle.split(/\s+/).filter((w) => w.length > 2);
-    return words.some((w) => t.title.toLowerCase().includes(w));
-  }) ?? null;
+  return words
+    .slice(0, 3)
+    .map((word, index) => index === 0
+      ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+      : word.toLowerCase())
+    .join(" ");
 }
 
 function getStickerClass(colorId) {
@@ -588,39 +396,6 @@ function formatDeadline(date) {
   });
 }
 
-function getTopPriorityTask(tasks) {
-  const active = tasks.filter((t) => !t.isCompleted);
-  if (!active.length) return null;
-  return [...active].sort((a, b) => {
-    if (b.urgencyScore !== a.urgencyScore) return b.urgencyScore - a.urgencyScore;
-    return a.deadline.getTime() - b.deadline.getTime();
-  })[0];
-}
-
-function findTaskByHint(tasks, hint) {
-  const lower = hint.toLowerCase();
-  if (lower.includes("urgent") || lower.includes("critical") || lower.includes("red")) {
-    const match = tasks.filter((t) => t.urgencyScore >= 8 && !t.isCompleted);
-    if (match.length) return match[0];
-  }
-  if (lower.includes("important") || lower.includes("amber") || lower.includes("yellow")) {
-    const match = tasks.filter((t) => t.urgencyScore >= 5 && t.urgencyScore < 8 && !t.isCompleted);
-    if (match.length) return match[0];
-  }
-  if (lower.includes("not important") || lower.includes("stable") || lower.includes("green")) {
-    const match = tasks.filter((t) => t.urgencyScore < 5 && !t.isCompleted);
-    if (match.length) return match[0];
-  }
-  const top = getTopPriorityTask(tasks);
-  if (top && (lower.includes("top") || lower.includes("priority") || lower.includes("first"))) return top;
-  const byTitle = tasks.find(
-    (t) =>
-      lower.includes(t.title.toLowerCase()) ||
-      t.title.toLowerCase().split(" ").some((w) => w.length > 3 && lower.includes(w))
-  );
-  return byTitle ?? top ?? tasks[0] ?? null;
-}
-
 // ─── Task Meta (localStorage per-task metadata) ───────────────────────────────
 
 function readTaskMeta(userId) {
@@ -634,103 +409,6 @@ function readTaskMeta(userId) {
 
 function writeTaskMeta(userId, meta) {
   localStorage.setItem(`${TASK_META_PREFIX}${userId}`, JSON.stringify(meta));
-}
-
-// ─── Chat AI ───────────────────────────────────────────────────────────────────
-
-function parseActionsFromGemini(raw) {
-  const match = raw.match(/ACTIONS:\s*(\[[\s\S]*?\])/i);
-  if (!match) return { reply: raw.replace(/ACTIONS:[\s\S]*/i, "").trim(), actions: [] };
-  try {
-    return { reply: raw.replace(/ACTIONS:[\s\S]*/i, "").trim(), actions: JSON.parse(match[1]) };
-  } catch {
-    return { reply: raw, actions: [] };
-  }
-}
-
-function fallbackChatIntent(message, tasks) {
-  const lower = message.toLowerCase();
-  const actions = [];
-  let reply = "";
-
-  if (lower.match(/^(hi|hello|hey|greetings)/)) {
-    reply = "Hey there! I'm your Tasker AI. I can sort your matrix, batch-update tasks, or just help you manage the pressure. What do you need?";
-  } else if (lower.includes("remove") || lower.includes("delete") || lower.includes("clear")) {
-    const target = findTaskByHint(tasks, lower);
-    if (target) {
-      actions.push({ type: "delete", taskId: target.id });
-      reply = `I'll remove "${target.title}" (${target.urgencyLabel}) from your matrix.`;
-    } else reply = "I couldn't find a matching task to remove.";
-  } else if (lower.includes("sort") || lower.includes("arrange") || lower.includes("order") || lower.includes("priority")) {
-    actions.push({ type: "sort", sortBy: "urgency" });
-    reply = "I've re-ordered your active matrix by priority. Urgent tasks are now pinned to the top.";
-  } else if (lower.includes("all") && (lower.includes("change") || lower.includes("downgrade") || lower.includes("upgrade"))) {
-    const targets = ["urgent", "important", "not important"];
-    let foundFilter = null;
-    let foundTarget = null;
-    targets.forEach(t => {
-      if (lower.includes(t)) {
-        if (!foundFilter) foundFilter = t;
-        else if (foundFilter && !foundTarget && t !== foundFilter) foundTarget = t;
-      }
-    });
-    if (foundFilter && foundTarget) {
-      const scoreMap = { "not important": 3, "important": 6, "urgent": 9 };
-      const newScore = scoreMap[foundTarget] || 3;
-      actions.push({ type: "batch_update", filterUrgency: foundFilter, updates: { urgency_score: newScore } });
-      reply = `I'll execute a global batch update on those tasks.`;
-    } else {
-      reply = "I'm offline and couldn't fully parse the batch update instruction. Be specific, like 'downgrade all Urgent tasks to Not Important'.";
-    }
-  } else if (lower.includes("lower") || lower.includes("reduce") || lower.includes("downgrade")) {
-    const target = findTaskByHint(tasks, lower);
-    if (target) {
-      actions.push({ type: "update", taskId: target.id, updates: { urgency_score: 3 } });
-      reply = `I'll downgrade "${target.title}" to Not Important.`;
-    } else reply = "No matching assignment found to downgrade.";
-  } else {
-    const top = getTopPriorityTask(tasks);
-    reply = top
-      ? `You currently have ${tasks.length} sticker(s). Your highest-priority task is "${top.title}".`
-      : "I can create placeholder tasks, set deadlines, or update priorities for you. Tell me what you want to do next.";
-  }
-  return { reply, actions };
-}
-
-async function processAssistantMessage(message, tasks) {
-  const taskPayload = tasks.map((t) => ({
-    id: t.id,
-    title: t.title,
-    urgency_label: t.urgencyLabel,
-    deadline: t.deadline.toISOString(),
-    is_completed: t.isCompleted,
-  }));
-
-  const system = `You are Tasker AI, a highly intelligent, conversational productivity co-pilot with direct Supabase mutation authority.
-Tasks: ${JSON.stringify(taskPayload, null, 2)}
-
-Urgency labels: Urgent (red, score:9), Important (amber, score:6), Not Important (green, score:3).
-Recognize and respond warmly to greetings ("Hi", "Hello", "Hey"). Provide insightful, high-quality human productivity advice about managing pressure and completing active schedules.
-Respond with a conversational reply, then end with an ACTIONS JSON line containing an array of objects.
-Actions can be:
-- {"type":"delete","taskId":"<uuid>"}
-- {"type":"update","taskId":"<uuid>","updates":{"urgency_score":3,"title":"new","deadline":"iso"}}
-- {"type":"batch_update","filterUrgency":"Urgent","updates":{"urgency_score":3}}
-- {"type":"sort","sortBy":"urgency"}
-
-Example:
-Hey there! I've arranged your tasks by priority! Focus on the most urgent ones first to keep the pressure off.
-ACTIONS: [{"type":"sort","sortBy":"urgency"}]`;
-
-  const raw = await callGemini(system, message, 400);
-  if (raw) return parseActionsFromGemini(raw);
-  return fallbackChatIntent(message, tasks);
-}
-
-// ─── Branding ──────────────────────────────────────────────────────────────────
-
-function BrandLogo({ className = "h-12 w-auto" }) {
-  return <img src="/TASKR.png" alt="Logo" className={className} />;
 }
 
 function StatusBanner({ message, variant = "error", dark, onDismiss }) {
@@ -759,25 +437,31 @@ function StatusBanner({ message, variant = "error", dark, onDismiss }) {
 
 // ─── Auth ──────────────────────────────────────────────────────────────────────
 
-function AuthScreen({ onAuthenticated, t }) {
-  const [mode, setMode] = useState("signin");
+function AuthScreen({ onAuthenticated, t, initialError = null, initialMode = "signin", onBack }) {
+  const [mode, setMode] = useState(initialMode);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState(initialError);
   const [success, setSuccess] = useState(null);
 
   const handleSignIn = async (signInEmail, signInPassword) => {
     setLoading(true);
     setError(null);
-    const { data, error: err } = await supabase.auth.signInWithPassword({
-      email: signInEmail,
-      password: signInPassword,
-    });
-    setLoading(false);
-    if (err) setError(err.message);
-    else if (data.session) onAuthenticated(data.session);
+    try {
+      const { data, error: err } = await supabase.auth.signInWithPassword({
+        email: signInEmail,
+        password: signInPassword,
+      });
+      if (err) setError(formatAuthError(err));
+      else if (data.session) onAuthenticated(data.session);
+      else setError("Supabase did not return an authenticated session.");
+    } catch (err) {
+      setError(formatAuthError(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -791,17 +475,22 @@ function AuthScreen({ onAuthenticated, t }) {
         setError("Please enter your full name.");
         return;
       }
-      const { data, error: err } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
-        options: { data: { full_name: fullName.trim() } },
-      });
-      setLoading(false);
-      if (err) setError(err.message);
-      else if (data.session) onAuthenticated(data.session);
-      else {
-        setSuccess("Account created! Check your email, then sign in.");
-        setMode("signin");
+      try {
+        const { data, error: err } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: { data: { full_name: fullName.trim() } },
+        });
+        if (err) setError(formatAuthError(err));
+        else if (data.session) onAuthenticated(data.session);
+        else {
+          setSuccess("Account created! Check your email, then sign in.");
+          setMode("signin");
+        }
+      } catch (err) {
+        setError(formatAuthError(err));
+      } finally {
+        setLoading(false);
       }
       return;
     }
@@ -809,65 +498,45 @@ function AuthScreen({ onAuthenticated, t }) {
   };
 
   return (
-    <div className={`flex min-h-screen items-center justify-center px-4 py-12 ${t.authShell} relative overflow-hidden`}>
-      <div className="absolute inset-0 overflow-hidden pointer-events-none select-none z-0 text-slate-900 dark:text-white">
-        <CheckCircle className="absolute top-10 left-12 rotate-12 h-32 w-32 opacity-5 dark:opacity-[0.03]" />
-        <Sparkles className="absolute bottom-20 right-16 -rotate-12 h-32 w-32 opacity-5 dark:opacity-[0.03]" />
-        <div className="absolute top-20 right-1/4 text-8xl rotate-[20deg] opacity-5 dark:opacity-[0.03]">⚡</div>
-        <div className="absolute bottom-1/4 left-1/4 text-9xl -rotate-[15deg] opacity-5 dark:opacity-[0.03]">✅</div>
-        <div className="absolute top-1/2 left-8 text-7xl rotate-[30deg] opacity-5 dark:opacity-[0.03]">🎯</div>
-        <div className="absolute bottom-10 left-1/2 text-8xl rotate-[5deg] opacity-5 dark:opacity-[0.03]">📈</div>
-      </div>
-      <div className="relative w-full max-w-md z-10">
-        <div className="mb-10 flex flex-col items-center">
-          <BrandLogo className="h-20 w-auto drop-shadow-xl transition-transform hover:scale-105" />
-          <h2 className="mt-4 text-sm font-bold uppercase tracking-widest text-slate-500">DO IT FASTER WITH TASKR</h2>
-        </div>
-        <BorderGlow
-          borderRadius={24}
-          glowColor={t.shell.includes("0a0f24") ? "217 90 60" : "217 90 50"}
-          backgroundColor={t.shell.includes("0a0f24") ? "#161f42" : "#ffffff"}
-          className="w-full shadow-2xl"
-        >
-          <div className="w-full p-6 sm:p-8">
-            <div className={`mb-6 flex rounded-xl border p-1 ${t.authToggle}`}>
-            {["signin", "signup"].map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => { setMode(m); setError(null); setSuccess(null); }}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold ${
-                  mode === m ? "bg-blue-600 text-white shadow-sm" : t.textMuted
-                }`}
-              >
-                {m === "signin" ? <LogIn className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-                {m === "signin" ? "Sign In" : "Sign Up"}
-              </button>
-            ))}
-          </div>
-          <StatusBanner message={error} dark={t.shell.includes("0a0f24")} onDismiss={() => setError(null)} />
-          <StatusBanner message={success} variant="success" dark={t.shell.includes("0a0f24")} onDismiss={() => setSuccess(null)} />
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === "signup" && (
-              <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full Name" className={`w-full rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2 ${t.input}`} />
-            )}
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="Email" className={`w-full rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2 ${t.input}`} />
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} placeholder="Password" className={`w-full rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2 ${t.input}`} />
-            <button type="submit" disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60">
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {loading ? "Please wait…" : mode === "signup" ? "Create Account" : "Sign In"}
-            </button>
-          </form>
-          <div className="my-6 flex items-center gap-3">
-            <div className={`h-px flex-1 ${t.textMuted.includes("slate") ? "bg-blue-500/20" : "bg-zinc-100"}`} />
-            <span className={`text-xs uppercase ${t.textMuted}`}>or</span>
-            <div className={`h-px flex-1 ${t.textMuted.includes("slate") ? "bg-blue-500/20" : "bg-zinc-100"}`} />
-          </div>
-          <button type="button" onClick={() => handleSignIn(JUDGE_EMAIL, JUDGE_PASSWORD)} disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl border border-amber-400/40 bg-amber-500/10 px-4 py-3.5 text-sm font-bold text-amber-600 dark:text-amber-300">
-            ⚡ Quick Demo Access (For Judges)
+    <div className="auth-page">
+      <div className="auth-page-glow auth-page-glow-one" />
+      <div className="auth-page-glow auth-page-glow-two" />
+      <div className="auth-shell">
+        <div className="auth-topbar">
+          <button type="button" className="auth-brand" onClick={onBack} aria-label="Back to TASKR landing page">
+            <BrandLogo className="auth-wordmark" tone="light" />
           </button>
+          <button type="button" className="auth-back" onClick={onBack}>Back to site <ChevronLeft className="h-4 w-4" /></button>
+        </div>
+        <div className="auth-layout">
+          <div className="auth-pitch">
+            <span className="landing-section-label">The work starts here</span>
+            <h1>Bring the scattered pieces <em>into focus.</em></h1>
+            <p>Sign in to continue your workspace, or create a calm place for the next idea, task, diagram, and decision.</p>
+            <div className="auth-pitch-list"><span><CheckCircle2 className="h-4 w-4" /> Pick up where you left off</span><span><CheckCircle2 className="h-4 w-4" /> Keep every kind of work close</span><span><CheckCircle2 className="h-4 w-4" /> Move from thought to finished</span></div>
           </div>
-        </BorderGlow>
+          <div className="auth-card-wrap">
+            <BorderGlow borderRadius={26} glowColor="37 99 235" backgroundColor="#ffffff" className="auth-card-glow">
+              <div className="auth-card">
+                <div className="auth-card-heading"><span className="auth-card-kicker">Welcome to TASKR</span><h2>{mode === "signin" ? "Welcome back." : "Start with a clear page."}</h2><p>{mode === "signin" ? "Your work is ready when you are." : "Create your account and make space for momentum."}</p></div>
+                <div className={`auth-toggle ${t.authToggle}`}>
+                  {["signin", "signup"].map((m) => <button key={m} type="button" onClick={() => { setMode(m); setError(null); setSuccess(null); }} className={mode === m ? "is-active" : ""}>{m === "signin" ? <LogIn className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}{m === "signin" ? "Sign in" : "Sign up"}</button>)}
+                </div>
+                <StatusBanner message={error} dark={false} onDismiss={() => setError(null)} />
+                <StatusBanner message={success} variant="success" dark={false} onDismiss={() => setSuccess(null)} />
+                <form onSubmit={handleSubmit} className="auth-form">
+                  {mode === "signup" && <label><span>Full name</span><input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your name" autoComplete="name" /></label>}
+                  <label><span>Email address</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" autoComplete="email" /></label>
+                  <label><span>Password</span><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} placeholder="At least 6 characters" autoComplete={mode === "signin" ? "current-password" : "new-password"} /></label>
+                  <button type="submit" disabled={loading} className="auth-submit">{loading && <Loader2 className="h-4 w-4 animate-spin" />}{loading ? "Please wait…" : mode === "signup" ? "Create account" : "Continue to TASKR"}<ArrowRight className="h-4 w-4" /></button>
+                </form>
+                <div className="auth-divider"><span />or<span /></div>
+                <button type="button" onClick={() => handleSignIn(JUDGE_EMAIL, JUDGE_PASSWORD)} disabled={loading} className="auth-demo"><Sparkles className="h-4 w-4" /> Try the demo workspace</button>
+                <p className="auth-legal">By continuing, you agree to keep your workspace purposeful.</p>
+              </div>
+            </BorderGlow>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -906,8 +575,7 @@ function SidebarMenu({ open, onClose, activeScreen, onNavigate, t, dark }) {
           <div>
             <h3 className={`mb-3 px-1 text-xs font-bold tracking-widest text-slate-400 uppercase`}>Main</h3>
             <nav className="space-y-2">
-              <NavButton id="workspace" label="Workspace" icon={LayoutGrid} />
-              <NavButton id="settings" label="Settings" icon={Settings} />
+              <NavButton id="home" label="Home" icon={LayoutGrid} />
             </nav>
           </div>
 
@@ -916,8 +584,7 @@ function SidebarMenu({ open, onClose, activeScreen, onNavigate, t, dark }) {
             <nav className="space-y-2">
               <NavButton id="sticker" label="Sticker" icon={StickyNote} />
               <NavButton id="finance" label="Finance" icon={PieChart} />
-              <NavButton id="table" label="Table" icon={Table} />
-              <NavButton id="draw" label="Draw" icon={PenTool} />
+              <NavButton id="workspace" label="Workspace" icon={PenTool} />
               <NavButton id="flow" label="Flow" icon={GitMerge} />
             </nav>
           </div>
@@ -986,7 +653,7 @@ function PanicDump({ t, onSubmit, isSubmitting, selectedDate }) {
             type="text"
             value={manualTitle}
             onChange={(e) => setManualTitle(e.target.value)}
-            placeholder="Type a custom title or leave blank for smart title"
+            placeholder="Type a custom title or leave blank for an automatic title"
             className={`w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:ring-2 ${t.input}`}
           />
         </div>
@@ -1043,8 +710,9 @@ function PanicDump({ t, onSubmit, isSubmitting, selectedDate }) {
                 type="button"
                 onClick={() => setStickerColor(color.id)}
                 className={`h-8 w-8 rounded-full border-2 transition-transform hover:scale-110 ${stickerColor === color.id ? "ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-[#161f42] scale-110" : ""}`}
-                style={{ backgroundColor: color.id === "white" ? "#f8fafc" : color.hex, borderColor: "rgba(0,0,0,0.1)" }}
+                style={{ backgroundColor: color.hex, borderColor: color.id === "white" ? "#cbd5e1" : "rgba(0,0,0,0.16)" }}
                 aria-label={color.label}
+                title={color.label}
               />
             ))}
           </div>
@@ -1134,7 +802,7 @@ function StickerCard({ task, dark, t, onToggleSubTask, onDelete, onEdit, isDelet
   };
 
   return (
-    <article className={`group relative flex w-full flex-col rounded-2xl p-4 shadow-md transition-all overflow-hidden ${getStickerClass(task.stickerColor)} ${isOvertime ? "border-2 border-red-500" : ""}`}>
+    <article className={`group relative flex h-full w-full flex-col rounded-2xl p-4 shadow-md transition-all overflow-hidden ${getStickerClass(task.stickerColor)} ${isOvertime ? "border-2 border-red-500" : ""}`}>
       
       <div className="absolute top-3 right-3 flex gap-1 opacity-0 transition-all group-hover:opacity-100 z-10">
         {!isEditing && (
@@ -1159,6 +827,8 @@ function StickerCard({ task, dark, t, onToggleSubTask, onDelete, onEdit, isDelet
                 onClick={() => setEditColor(color.id)}
                 className={`w-5 h-5 rounded-full ${editColor === color.id ? "ring-2 ring-blue-500" : ""}`}
                 style={{ backgroundColor: color.hex, borderColor: "rgba(0,0,0,0.1)", borderWidth: 1 }}
+                aria-label={color.label}
+                title={color.label}
               />
             ))}
           </div>
@@ -1261,215 +931,28 @@ function StickerGrid({ tasks, t, dark, isLoading, deletingTaskId, onToggleSubTas
   );
 }
 
-// ─── Settings ──────────────────────────────────────────────────────────────────
-
-function SettingsScreen({ dark, setDark, t, onResetAll, isResetting, dbStatus, uptime, taskCount, onMenuClick }) {
-  return (
-    <div className="h-full overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
-
-      <div className="space-y-4">
-        <section className={`rounded-2xl p-5 ${t.card}`}>
-          <h3 className={`text-sm font-bold ${t.textPrimary}`}>Theme Variant</h3>
-          <p className={`mt-1 text-xs ${t.textMuted}`}>Pure white light mode or midnight navy with cobalt glow.</p>
-          <div className="mt-4 flex gap-3">
-            <button type="button" onClick={() => setDark(false)} className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold ${!dark ? "border-blue-400 bg-blue-50 text-blue-700 ring-2 ring-blue-200" : "border-zinc-200 text-zinc-500"}`}>
-              <Sun className="h-4 w-4" /> Light
-            </button>
-            <button type="button" onClick={() => setDark(true)} className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold ${dark ? "border-blue-500/40 bg-[#161f42] text-blue-300 ring-2 ring-blue-500/30" : "border-zinc-200 text-zinc-500"}`}>
-              <Moon className="h-4 w-4" /> Midnight
-            </button>
-          </div>
-        </section>
-
-        <section className={`rounded-2xl border p-5 ${dark ? "border-red-500/30 bg-red-950/20" : "border-red-100 bg-red-50/50"}`}>
-          <h3 className={`text-sm font-bold ${dark ? "text-red-300" : "text-red-800"}`}>Reset Table Core</h3>
-          <p className={`mt-1 text-xs ${dark ? "text-red-400/80" : "text-red-600/80"}`}>Delete all {taskCount} sticker(s) from Supabase.</p>
-          <button type="button" onClick={onResetAll} disabled={isResetting || taskCount === 0} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50">
-            {isResetting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-            {isResetting ? "Purging…" : "Reset Dashboard"}
-          </button>
-        </section>
-
-        <section className={`rounded-2xl p-5 ${t.card}`}>
-          <div className="group relative w-full">
-            <h3 className={`text-sm font-bold cursor-help border-b border-dashed border-slate-400 pb-0.5 transition-colors hover:text-blue-500 ${t.textPrimary} inline-block`}>
-              About
-            </h3>
-            <div className="hidden group-hover:block w-full text-left pt-2 pb-1 transition-all duration-300">
-              <div className={`w-full rounded-xl border p-5 shadow-sm ${t.dropdown}`}>
-                <div className={`space-y-3.5 text-xs leading-relaxed ${t.textMuted}`}>
-                  <p><strong className={t.textPrimary}>ABOUT TASKR:</strong><br/>TASKR is a high-velocity, intelligent task management workspace engineered to transform chaotic text dumps into optimized, priority-coded action plans. Designed for high-pressure workflows, it bridges the gap between raw intent and flawless execution through an elegant, feature-rich ecosystem:</p>
-                  <p><strong className={t.textPrimary}>The Panic Dump &amp; Smart Titles:</strong> Users can quickly offload task details into a unified input stream. TASKR utilizes client-side integration with the Gemini API to instantly analyze descriptions and generate punchy, 3-to-5 word smart titles.</p>
-                  <p><strong className={t.textPrimary}>Simplified Urgency Coding:</strong> Tasks are dynamically rendered as visual sticker cards. Backgrounds adapt to soft, modern pastel hues based on a simplified priority vocabulary—Urgent (pastel red), Important (pastel amber), and Not Important (pastel green)—completely eliminating stressful numeric ratings.</p>
-                  <p><strong className={t.textPrimary}>Interactive Subtasks &amp; Auto-Erase:</strong> Users can manually append nested subtasks before deploying an item. Checking off the final subtask triggers an instant confirmation alert to purge the task from the board and database automatically.</p>
-                  <p><strong className={t.textPrimary}>Consistency Board:</strong> Replacing standard tracking grids, this streamlined, real-time indicator scale tracks a daily Plan-to-Execution Reliability Score. It maps a single moving indicator to shifting emojis (🥲, 😐, 😁, 😃) that react instantly to task changes.</p>
-                  <p><strong className={t.textPrimary}>Autonomous AI Chatbar:</strong> A floating, context-aware digital co-pilot with direct Supabase authority allows users to ask for schedule advice or command it to alter and delete records on the fly.</p>
-                  <p><strong className={t.textPrimary}>Sleek Dual-Screen Interface:</strong> Seamlessly toggles via a sliding layout between the core workspace and a dedicated settings page featuring an elite, midnight-blue theme variant and a full system clear route.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className={`rounded-2xl p-5 ${t.card}`}>
-          <h3 className={`text-sm font-bold ${t.textPrimary}`}>System Diagnostics</h3>
-          <div className="mt-4 space-y-3">
-            <div className={`flex items-center justify-between rounded-xl border px-4 py-3 ${t.cardMuted}`}>
-              <span className={`text-xs font-medium ${t.textMuted}`}>Session Uptime</span>
-              <span className="font-mono text-sm font-bold text-blue-500">{uptime}</span>
-            </div>
-            <div className={`flex items-center justify-between rounded-xl border px-4 py-3 ${t.cardMuted}`}>
-              <span className={`flex items-center gap-2 text-xs font-medium ${t.textMuted}`}><Database className="h-3.5 w-3.5" /> Supabase Link</span>
-              <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${dbStatus === "connected" ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"}`}>
-                {dbStatus === "connected" ? "Validated" : dbStatus === "checking" ? "Checking…" : "Offline"}
-              </span>
-            </div>
-            <div className={`flex items-center justify-between rounded-xl border px-4 py-3 ${t.cardMuted}`}>
-              <span className={`text-xs font-medium ${t.textMuted}`}>Gemini API</span>
-              <span className={`text-xs font-bold ${getGeminiKey() ? "text-emerald-500" : "text-amber-500"}`}>
-                {getGeminiKey() ? "Key detected" : "Local fallback"}
-              </span>
-            </div>
-          </div>
-        </section>
-      </div>
-    </div>
-  );
-}
-
-// ─── AI drawer ─────────────────────────────────────────────────────────────────
-
-function AiAssistantDrawer({ tasks, t, dark, onExecuteActions, onRunAgent }) {
-  const [open, setOpen] = useState(false);
-  const [input, setInput] = useState("");
-  const [thinking, setThinking] = useState(false);
-  const [messages, setMessages] = useState([{
-    id: "welcome",
-    role: "assistant",
-    text: "Hey! I'm your TASKR Copilot. I can help organize, create, or manage your tasks. Just ask.",
-  }]);
-  const feedRef = useRef(null);
-
-  useEffect(() => {
-    if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight;
-  }, [messages, thinking]);
-
-  const push = (role, text) => setMessages((prev) => [...prev, { id: `${Date.now()}-${Math.random()}`, role, text }]);
-
-  const runQuery = async (text) => {
-    const trimmed = text.trim();
-    if (!trimmed || thinking) return;
-    push("user", trimmed);
-    setInput("");
-    setThinking(true);
-    let finalReply = "";
-    if (onRunAgent) {
-      const result = await onRunAgent(trimmed);
-      finalReply = result?.text || (typeof result === "string" ? result : "Operations completed successfully.");
-    } else {
-      const { reply, actions } = await processAssistantMessage(trimmed, tasks);
-      finalReply = reply;
-      if (actions.length) finalReply = `${reply}\n\n${await onExecuteActions(actions)}`;
-    }
-    push("assistant", finalReply);
-    setThinking(false);
-  };
-
-  return (
-    <>
-      <button type="button" onClick={() => setOpen((v) => !v)} className={`fixed right-8 bottom-8 z-[70] flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-[0_0_30px_-5px_rgba(37,99,235,0.4)] ring-1 ring-blue-500/20 transition-all duration-300 hover:scale-105 hover:bg-blue-700 ${!open ? "animate-pulse" : ""}`}>
-        {open ? <X className="h-6 w-6" /> : <Sparkles className="h-6 w-6" />}
-      </button>
-      <div className={`fixed right-8 bottom-28 z-[70] flex w-[min(100vw-4rem,500px)] flex-col overflow-hidden rounded-[2rem] border shadow-2xl transition-all duration-300 backdrop-blur-3xl ${dark ? "border-white/10 bg-[#0a0f24]/90 shadow-blue-900/20" : "border-slate-200/60 bg-white/90 shadow-slate-300/50"} ${open ? "translate-y-0 opacity-100 scale-100" : "pointer-events-none translate-y-8 opacity-0 scale-95"}`} style={{ maxHeight: "min(80vh, 700px)" }}>
-        
-        {/* Header - Minimal workspace feel */}
-        <div className={`flex items-center justify-between px-8 py-6 ${dark ? "border-white/5" : "border-slate-100"}`}>
-          <div className="flex items-center gap-3">
-            <Sparkles className="h-5 w-5 text-blue-500" />
-            <h2 className={`text-lg font-bold tracking-tight ${t.textPrimary}`}>TASKR Copilot</h2>
-          </div>
-          <button type="button" onClick={() => setOpen(false)} className={`rounded-full p-2 transition-colors hover:bg-black/5 dark:hover:bg-white/10`}><X className="h-5 w-5 opacity-50 hover:opacity-100 transition-opacity" /></button>
-        </div>
-
-        {/* Message Feed - Document format, no chat bubbles */}
-        <div ref={feedRef} className="flex-1 overflow-y-auto px-8 py-4 scroll-smooth">
-          <div className="space-y-10 pb-8">
-            {messages.map((msg) => {
-              if (msg.role === "metrics") return null;
-              return (
-                <div key={msg.id} className="group flex flex-col gap-2">
-                  <span className={`text-[11px] font-bold uppercase tracking-wider ${msg.role === "user" ? "text-blue-500" : t.textMuted}`}>
-                    {msg.role === "user" ? "You" : "TASKR Copilot"}
-                  </span>
-                  <div className={`text-[14px] leading-relaxed whitespace-pre-wrap ${t.textPrimary}`}>
-                    {msg.text}
-                  </div>
-                </div>
-              );
-            })}
-            
-            {thinking && (
-              <div className="flex flex-col gap-2">
-                <span className={`text-[11px] font-bold uppercase tracking-wider ${t.textMuted}`}>TASKR Copilot</span>
-                <div className={`flex items-center gap-1.5 h-6`}>
-                  <div className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: "0ms" }}></div>
-                  <div className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: "150ms" }}></div>
-                  <div className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: "300ms" }}></div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Floating Command Palette Input */}
-        <div className="px-6 pb-6 pt-2">
-          <form onSubmit={(e) => { e.preventDefault(); runQuery(input); }} className={`relative flex items-center overflow-hidden rounded-[1.5rem] border shadow-sm transition-all focus-within:ring-2 focus-within:ring-blue-500/30 focus-within:shadow-md ${dark ? "bg-[#161f42]/60 border-blue-500/20" : "bg-slate-50/80 border-slate-200"}`}>
-            <input type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type a command or ask a question..." disabled={thinking} className={`flex-1 bg-transparent px-6 py-4 text-[14px] outline-none disabled:opacity-50 ${dark ? "text-white placeholder-slate-500" : "text-slate-900 placeholder-slate-400"}`} />
-            <div className="pr-3 pl-2">
-              <button type="submit" disabled={!input.trim() || thinking} className={`flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white transition-all hover:bg-blue-700 disabled:opacity-40 disabled:hover:bg-blue-600 ${input.trim() && !thinking ? "scale-100 shadow-sm" : "scale-95"}`}>
-                <Send className="h-4 w-4" />
-              </button>
-            </div>
-          </form>
-          
-          <div className="mt-4 flex flex-wrap gap-2 px-2">
-            {QUICK_ACTIONS.map((a) => (
-              <button key={a.id} type="button" onClick={() => runQuery(a.label)} disabled={thinking} className={`rounded-full border px-3 py-1.5 text-[11px] font-medium transition-colors disabled:opacity-50 ${dark ? "border-blue-500/15 bg-transparent text-slate-400 hover:bg-blue-500/10 hover:text-blue-300" : "border-slate-200 bg-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-800"}`}>
-                {a.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-      </div>
-    </>
-  );
-}
-
 // ─── Root ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
   const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [dark, setDark] = useState(false);
-  const [activeScreen, setActiveScreen] = useState("workspace");
+  const [authMode, setAuthMode] = useState("signin");
+  const [showAuth, setShowAuth] = useState(false);
+  const [activeScreen, setActiveScreen] = useState("home");
   const [tasks, setTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isResetting, setIsResetting] = useState(false);
   const [deletingTaskId, setDeletingTaskId] = useState(null);
   const [error, setError] = useState(null);
   const [selectedDate, setSelectedDate] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
-  const [matrixHeight, setMatrixHeight] = useState(500);
+  const [matrixHeight, setMatrixHeight] = useState(680);
 
-  const [dbStatus, setDbStatus] = useState("checking");
-  const [sessionStart] = useState(() => Date.now());
   const [savedWorkspaces, setSavedWorkspaces] = useState(() => {
     return JSON.parse(localStorage.getItem("taskr_saved_workspaces") || "[]");
   });
-  const [uptime, setUptime] = useState("00:00:00");
   const [alertConfig, setAlertConfig] = useState(null);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -1478,11 +961,12 @@ export default function App() {
   const handleSaveWorkspace = useCallback((id, name, type) => {
     setSavedWorkspaces(prev => {
       const existing = prev.find(ws => ws.id === id);
+      const updatedAt = Date.now();
       let updated;
       if (existing) {
-        updated = prev.map(ws => ws.id === id ? { ...ws, name, lastUpdated: "just now" } : ws);
+        updated = prev.map(ws => ws.id === id ? { ...ws, name, type, lastUpdated: "just now", updatedAt } : ws);
       } else {
-        updated = [...prev, { id, name, type, lastUpdated: "just now" }];
+        updated = [...prev, { id, name, type, lastUpdated: "just now", updatedAt }];
       }
       localStorage.setItem("taskr_saved_workspaces", JSON.stringify(updated));
       return updated;
@@ -1494,14 +978,14 @@ export default function App() {
     tasksRef.current = tasks;
   }, [tasks]);
 
-  const requestConfirmation = useCallback((message, onConfirm, isDestructive = false) => {
+  const requestConfirmation = useCallback((message, onConfirm, isDestructive = false, confirmText = null) => {
     setAlertConfig({
       type: "confirm",
       title: "Confirm Action",
       message,
       onConfirm,
       isDestructive,
-      confirmText: isDestructive ? "Delete" : "Confirm"
+      confirmText: confirmText || (isDestructive ? "Delete" : "Confirm")
     });
   }, []);
 
@@ -1532,11 +1016,8 @@ export default function App() {
     const { data, error: fetchError } = await supabase.from("tasks").select("*").eq("user_id", userId).order("deadline", { ascending: true });
     if (fetchError) {
       setError(fetchError.message);
-      setDbStatus("offline");
     } else {
       setTasks(sortByDeadline((data ?? []).map((row) => mapSupabaseTask(row, meta))));
-      setDbStatus("connected");
-
     }
     setIsLoading(false);
   }, [userId]);
@@ -1546,6 +1027,11 @@ export default function App() {
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
       setSession(data.session);
+      setAuthLoading(false);
+    }).catch((err) => {
+      if (!mounted) return;
+      setSession(null);
+      setError(formatAuthError(err));
       setAuthLoading(false);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
@@ -1567,12 +1053,6 @@ export default function App() {
     const tick = setInterval(() => {
       const now = Date.now();
       setCurrentTime(now);
-      
-      const secs = Math.floor((now - sessionStart) / 1000);
-      const h = String(Math.floor(secs / 3600)).padStart(2, "0");
-      const m = String(Math.floor((secs % 3600) / 60)).padStart(2, "0");
-      const s = String(secs % 60).padStart(2, "0");
-      setUptime(`${h}:${m}:${s}`);
 
       if (!userId) return;
 
@@ -1627,52 +1107,40 @@ export default function App() {
       }
     }, 1000);
     return () => clearInterval(tick);
-  }, [sessionStart, userId]);
+  }, [userId]);
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    setTasks([]);
+  const handleSignOut = useCallback(async () => {
+    let signOutError = null;
+    try {
+      const result = await supabase.auth.signOut();
+      signOutError = result.error;
+    } catch (error) {
+      signOutError = error;
+    } finally {
+      setSession(null);
+      setTasks([]);
+      setAuthMode("signin");
+      setShowAuth(true);
+      setActiveScreen("home");
+      if (signOutError) setError(formatAuthError(signOutError));
+    }
+  }, []);
 
-    setActiveScreen("workspace");
-  };
+  const handleRequestSignOut = useCallback(() => {
+    requestConfirmation(
+      "Are you sure you want to log out of TASKR?",
+      handleSignOut,
+      false,
+      "Log out"
+    );
+  }, [handleSignOut, requestConfirmation]);
 
   const handleCreateTask = useCallback(async (manualTitle, rawInput, deadlineStr, stickerColor, userSubTasks = []) => {
     if (!userId) return;
     setIsSubmitting(true);
     setError(null);
     try {
-      let smartTitle = manualTitle;
-      if (!smartTitle) {
-        try {
-          const apiKey = getGeminiKey();
-          if (apiKey) {
-            const ai = new GoogleGenAI({ apiKey });
-            const response = await ai.models.generateContent({
-              model: "gemini-2.5-flash",
-              contents: [{ role: "user", parts: [{ text: "Create a catchy 2-3 word title explaining this task context. Do not include quotes: " + rawInput }] }]
-            });
-            const extractedText = response?.text;
-            if (extractedText && extractedText.trim()) {
-              smartTitle = extractedText.trim().replace(/['"]+/g, "").replace(/[#*]/g, "");
-            }
-          }
-        } catch (err) {
-          console.warn("Gemini offline, engaging local smart extraction engine...", err);
-        }
-      }
-
-      if (!smartTitle || smartTitle.toLowerCase() === "new task") {
-        const cleanText = rawInput.trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
-        const words = cleanText.split(/\s+/).filter(w => w.length > 2);
-        if (words.length > 0) {
-          const firstWord = words[0].charAt(0).toUpperCase() + words[0].slice(1).toLowerCase();
-          const secondWord = words[1] ? words[1].toLowerCase() : "";
-          const thirdWord = words[2] ? words[2].toLowerCase() : "";
-          smartTitle = `${firstWord} ${secondWord} ${thirdWord}`.trim();
-        } else {
-          smartTitle = "Quick Task Node";
-        }
-      }
+      const smartTitle = manualTitle || createTaskTitle(rawInput);
 
       const deadline = toIsoDeadline(deadlineStr);
       const plannedDate = dateKey(new Date(deadline));
@@ -1801,149 +1269,6 @@ export default function App() {
     }
   }, [tasks, userId]);
 
-  const handleResetAll = useCallback(() => {
-    if (!userId || !tasks.length) return;
-    requestConfirmation(
-      `Delete all ${tasks.length} stickers permanently?`,
-      async () => {
-        setIsResetting(true);
-        const { error: deleteError } = await supabase.from("tasks").delete().eq("user_id", userId);
-        setIsResetting(false);
-        if (deleteError) setError(deleteError.message);
-        else {
-          setTasks([]);
-          writeTaskMeta(userId, {});
-        }
-      },
-      true
-    );
-  }, [userId, tasks.length, requestConfirmation]);
-
-  const handleExecuteActions = useCallback(async (actions) => {
-    if (!userId || !actions.length) return "";
-    const summaries = [];
-    const meta = readTaskMeta(userId);
-
-    for (const action of actions) {
-      if (action.type === "delete" && action.taskId) {
-        const task = tasks.find((tk) => tk.id === action.taskId);
-        const { error: delErr } = await supabase.from("tasks").delete().eq("id", action.taskId).eq("user_id", userId);
-        if (delErr) summaries.push(`❌ Failed to delete: ${delErr.message}`);
-        else {
-          setTasks((prev) => prev.filter((tk) => tk.id !== action.taskId));
-          summaries.push(`✅ Deleted "${task?.title ?? "task"}" (${task?.urgencyLabel ?? ""}).`);
-        }
-      }
-      if (action.type === "update" && action.taskId) {
-        const updates = { ...action.updates };
-        if (action.urgency_score !== undefined) updates.urgency_score = action.urgency_score;
-        const { data, error: updErr } = await supabase.from("tasks").update(updates).eq("id", action.taskId).eq("user_id", userId).select().single();
-        if (updErr) summaries.push(`❌ Update failed: ${updErr.message}`);
-        else {
-          if (updates.urgency_label || updates.urgency_score !== undefined) {
-             meta[action.taskId] = { ...meta[action.taskId], urgencyLabel: updates.urgency_label ?? urgencyLabelFromScore(updates.urgency_score || data.urgency_score) };
-             writeTaskMeta(userId, meta);
-          }
-          setTasks((prev) => prev.map((tk) => tk.id === action.taskId ? mapSupabaseTask(data, meta) : tk));
-          summaries.push(`✅ Updated "${data.title}" successfully.`);
-        }
-      }
-      if (action.type === "batch_update" && action.filterUrgency) {
-        const targetLabel = action.filterUrgency.toLowerCase();
-        const targets = tasks.filter(t => t.urgencyLabel.toLowerCase() === targetLabel);
-        if (!targets.length) {
-          summaries.push(`⚠️ No tasks found matching urgency "${action.filterUrgency}".`);
-          continue;
-        }
-        
-        const dbUpdates = { ...action.updates };
-        const { error: batchErr } = await supabase.from("tasks")
-          .update(dbUpdates)
-          .eq("user_id", userId)
-          .in("id", targets.map(t => t.id));
-          
-        if (batchErr) summaries.push(`❌ Batch update failed: ${batchErr.message}`);
-        else {
-          const { data } = await supabase.from("tasks").select("*").in("id", targets.map(t => t.id));
-          if (data) {
-             targets.forEach(t => {
-                if (dbUpdates.urgency_label || dbUpdates.urgency_score !== undefined) {
-                   meta[t.id] = { ...meta[t.id], urgencyLabel: dbUpdates.urgency_label ?? urgencyLabelFromScore(dbUpdates.urgency_score) };
-                }
-             });
-             writeTaskMeta(userId, meta);
-             setTasks(prev => prev.map(tk => {
-               const updatedDb = data.find(d => d.id === tk.id);
-               return updatedDb ? mapSupabaseTask(updatedDb, meta) : tk;
-             }));
-          }
-          summaries.push(`✅ Batch updated ${targets.length} cards.`);
-          setAlertConfig({
-             type: "info",
-             title: "Batch Update Successful",
-             message: `Successfully modified ${targets.length} "${action.filterUrgency}" tasks.`,
-             onConfirm: () => setAlertConfig(null),
-             isDestructive: false,
-             confirmText: "Got it"
-          });
-        }
-      }
-      if (action.type === "sort" && action.sortBy) {
-        if (action.sortBy === "urgency") {
-          setTasks(prev => [...prev].sort((a, b) => b.urgencyScore - a.urgencyScore));
-          summaries.push(`✅ Tasks sorted by priority.`);
-        }
-      }
-    }
-
-    return summaries.join("\n") || "Actions completed.";
-  }, [tasks, userId]);
-
-  const handleAgentMessage = useCallback(async (message) => {
-    if (!userId) return "Please sign in first.";
-
-    const localResponse = routeLocalIntent(message, tasksRef.current);
-    if (localResponse) {
-      return localResponse;
-    }
-
-    const taskSummary = tasksRef.current.map((t) => ({
-      id: t.id,
-      title: t.title,
-      priority: t.urgencyLabel,
-      deadline: t.deadline.toISOString(),
-      isCompleted: t.isCompleted,
-    }));
-
-    const log = {
-      info: (...args) => console.info(...args),
-      warn: (...args) => console.warn(...args),
-      error: (...args) => console.error(...args),
-    };
-
-    const result = await handleChatMessage({
-      apiKey: getGeminiKey(),
-      model: GEMINI_MODEL,
-      userId,
-      userInput: message,
-      taskSummary,
-      logger: log,
-    });
-
-    if (result?.toolResults?.some((r) => r.ok)) {
-      await fetchTasks();
-      const successful = result.toolResults.filter((r) => r.ok).length;
-      toast.success(`AI Agent executed ${successful} tool call${successful > 1 ? "s" : ""}.`);
-    }
-
-    const failed = result?.toolResults?.filter((r) => !r.ok) ?? [];
-    if (failed.length) {
-      toast.error(`AI Agent hit ${failed.length} tool error${failed.length > 1 ? "s" : ""}.`);
-    }
-
-    return result || { text: "I could not complete that request." };
-  }, [fetchTasks, userId]);
-
   const handleRescheduleCritical = useCallback(async () => {
     if (!userId) return "Not signed in.";
     const urgent = tasks.filter((tk) => tk.urgencyScore >= 8 && !tk.isCompleted);
@@ -1972,22 +1297,25 @@ export default function App() {
   if (authLoading) {
     return (
       <div className={`flex min-h-screen flex-col items-center justify-center ${t.shell}`}>
-        <BrandLogo />
+        <BrandLogo className="loading-wordmark" tone="dark" />
         <Loader2 className="my-4 h-8 w-8 animate-spin text-blue-500" />
         <p className={`text-sm ${t.textMuted}`}>Starting…</p>
       </div>
     );
   }
 
-  if (!session) return <AuthScreen onAuthenticated={setSession} t={t} />;
+  if (!session) {
+    if (!showAuth) {
+      return <LandingPage onOpenAuth={(mode) => { setAuthMode(mode); setShowAuth(true); setError(null); }} />;
+    }
+    return <AuthScreen onAuthenticated={setSession} t={t} initialError={error} initialMode={authMode} onBack={() => setShowAuth(false)} />;
+  }
 
   const screenTitles = {
-    workspace: "Workspace",
+    home: "Home",
     sticker: "Sticker Matrix",
-    settings: "Settings",
     finance: "Finance",
-    table: "Table",
-    draw: "Draw",
+    workspace: "Workspace",
     flow: "Flow"
   };
 
@@ -1999,9 +1327,10 @@ export default function App() {
         fullName={fullName} 
         t={t} 
         dark={dark}
-        onSignOut={handleSignOut}
+        onSignOut={handleRequestSignOut}
         onMenuClick={() => setSidebarOpen(true)}
         title={screenTitles[activeScreen] || "TASKR"}
+        showAccount={activeScreen === "home"}
       />
       <SidebarMenu
         open={sidebarOpen}
@@ -2013,50 +1342,35 @@ export default function App() {
       />
 
       <div className="relative w-full h-full">
-        {activeScreen === "workspace" && (
+        {activeScreen === "home" && (
           <ClickSpark sparkColor="#2563eb" sparkCount={10} duration={400}>
-            <main className={`mx-auto max-w-7xl px-4 py-6 pb-28 sm:px-6 lg:px-8 mt-2 lg:mt-6 mb-6 rounded-[2.5rem] relative
-              before:absolute before:inset-0 before:-z-10 before:rounded-[2.5rem] 
-              before:shadow-[0_0_80px_-15px_rgba(59,130,246,0.15)] 
-              before:ring-1 before:ring-blue-500/10 
-              ${dark ? "before:bg-[#0a0f24]" : "before:bg-white"}
-              transition-all duration-500`}>
-              {error && <StatusBanner message={error} dark={dark} onDismiss={() => setError(null)} />}
-              
-              <WorkspaceHero username={username} t={t} dark={dark} />
-              
-              <DashboardSection title="Active Projects" t={t}>
-                <ProjectGrid>
-                  {savedWorkspaces.length === 0 && (
-                    <div className={`col-span-full py-8 text-center text-sm ${t.textMuted}`}>
-                      No workspaces saved yet. Open a workspace and click Save!
-                    </div>
-                  )}
-                  {savedWorkspaces.map(ws => (
-                    <ProjectCard 
-                      key={ws.id}
-                      project={{ name: ws.name, lastUpdated: ws.lastUpdated, taskCount: "Active", type: ws.type }}
-                      onClick={() => setActiveScreen(ws.id)}
-                      t={t}
-                      dark={dark}
-                    />
-                  ))}
-                </ProjectGrid>
-              </DashboardSection>
-            </main>
+            <>
+              {error && (
+                <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
+                  <StatusBanner message={error} dark={dark} onDismiss={() => setError(null)} />
+                </div>
+              )}
+              <DashboardHome
+                username={username}
+                tasks={tasks}
+                savedWorkspaces={savedWorkspaces}
+                onNavigate={setActiveScreen}
+                t={t}
+                dark={dark}
+              />
+            </>
           </ClickSpark>
         )}
 
         {activeScreen === "sticker" && (
-          <ClickSpark sparkColor="#2563eb" sparkCount={10} duration={400}>
-            <main className="mx-auto max-w-7xl px-4 py-6 pb-28 sm:px-6 lg:px-8">
+          <main className="mx-auto w-full max-w-[1680px] px-4 py-6 pb-28 sm:px-6 lg:px-8 xl:px-10">
               {error && <StatusBanner message={error} dark={dark} onDismiss={() => setError(null)} />}
 
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-                <div className="space-y-6 lg:col-span-4">
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(240px,280px)_minmax(0,1fr)]">
+                <aside className="space-y-6">
                   <PanicDump t={t} onSubmit={handleCreateTask} isSubmitting={isSubmitting} selectedDate={selectedDate} />
-                </div>
-                <div className="lg:col-span-8 flex flex-col">
+                </aside>
+                <section className="min-w-0 flex flex-col">
                   <div className="flex items-center justify-between mb-4 shrink-0">
                     <h2 className={`text-sm font-bold ${t.textPrimary}`}>Sticker Matrix</h2>
                     <SaveButton
@@ -2064,8 +1378,6 @@ export default function App() {
                     />
                   </div>
                   <StickerWorkspace
-                    dark={dark}
-                    t={t}
                     taskCount={filteredTasks.length}
                     hasActiveFilters={hasActiveFilters}
                     maxBottom={stickerInteractions.maxBottom}
@@ -2093,60 +1405,43 @@ export default function App() {
                       onBringToFront={stickerInteractions.bringToFront}
                     />
                   </StickerWorkspace>
-                </div>
+                </section>
               </div>
-            </main>
-          </ClickSpark>
-        )}
-
-        {activeScreen === "settings" && (
-          <SettingsScreen dark={dark} setDark={setDark} t={t} onResetAll={handleResetAll} isResetting={isResetting} dbStatus={dbStatus} uptime={uptime} taskCount={tasks.length} onMenuClick={() => setSidebarOpen(true)} />
+          </main>
         )}
 
         {activeScreen === "finance" && (
           <FinanceWorkspace 
             t={t} 
             dark={dark} 
+            userId={userId}
             onSave={(name) => handleSaveWorkspace("finance", name, "Finance Workspace")}
           />
         )}
 
-        {activeScreen === "table" && (
+        {activeScreen === "workspace" && (
           <TableWorkspace
+            key={userId || "local"}
+            userId={userId}
             t={t}
             dark={dark}
-            onSave={(name) => handleSaveWorkspace("table", name, "Table Workspace")}
+            onSave={(name) => handleSaveWorkspace("workspace", name, "Workspace Document")}
           />
         )}
 
-        {["draw", "flow"].includes(activeScreen) && (
-          <div className="mx-auto max-w-7xl px-4 py-6 pb-28 sm:px-6 lg:px-8 min-h-[60vh] flex flex-col items-center justify-center relative">
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(true)}
-              className={`absolute top-6 left-4 inline-flex items-center rounded-lg p-3 transition-colors border shadow-sm ${dark ? "border-blue-500/20 bg-[#161f42]/80 text-slate-400 hover:text-blue-500" : "border-slate-200 bg-white text-slate-500 hover:text-blue-500"}`}
-            >
-              <Menu className="h-4 w-4" />
-            </button>
-            <div className={`rounded-3xl border border-dashed p-12 text-center max-w-md ${dark ? "border-slate-700 bg-slate-900/50" : "border-slate-300 bg-slate-50"}`}>
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-500/10 mb-4">
-                <Sparkles className="h-8 w-8 text-blue-500" />
-              </div>
-              <h2 className={`mb-2 text-xl font-bold capitalize ${t.textPrimary}`}>{activeScreen} Workspace</h2>
-              <p className={`text-sm leading-relaxed ${t.textMuted}`}>
-                The {activeScreen} module is currently under construction. Please check back in a future update.
-              </p>
+        {activeScreen === "flow" && (
+          <Suspense fallback={
+            <div className={`flex min-h-[60vh] items-center justify-center ${t.shell}`}>
+              <div className="flex items-center gap-3 text-sm font-semibold text-blue-500"><Loader2 className="h-5 w-5 animate-spin" /> Loading Flow Builder…</div>
             </div>
-          </div>
+          }>
+            <FlowWorkspace key={userId || "local"} dark={dark} userId={userId} />
+          </Suspense>
         )}
       </div>
 
       <CustomAlertModal config={alertConfig} onClose={() => setAlertConfig(null)} dark={dark} />
 
-      {activeScreen === "sticker" && (
-        <AiAssistantDrawer tasks={tasks} t={t} dark={dark} onExecuteActions={handleExecuteActions} onRunAgent={handleAgentMessage} />
-      )}
-      
       {showSaveSticker && (
         <WorkspaceSaveModal
           t={t}

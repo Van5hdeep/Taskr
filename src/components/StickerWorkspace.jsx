@@ -9,10 +9,10 @@ const EXPANSION_TRIGGER_PX = 80;
 const EXPANSION_STEP_PX = 200;
 
 /** Absolute minimum canvas height */
-const CANVAS_MIN_HEIGHT_PX = 600;
+const CANVAS_MIN_HEIGHT_PX = 680;
 
 /** Padding below the lowest sticker so there's always scroll room */
-const CANVAS_CONTENT_PADDING_PX = 300;
+const CANVAS_CONTENT_PADDING_PX = 80;
 
 // ─── Empty State ───────────────────────────────────────────────────────────────
 
@@ -35,7 +35,7 @@ function EmptyStateIllustration({ dark }) {
         No stickers yet
       </h3>
       <p className={`text-sm text-center max-w-xs leading-relaxed ${dark ? "text-slate-400" : "text-zinc-500"}`}>
-        Use the Task Dump or AI Assistant to create your first task.
+        Use the Task Dump to create your first task.
       </p>
     </div>
   );
@@ -64,12 +64,10 @@ function FilterEmptyState({ dark }) {
 
 /**
  * StickerWorkspace — purely the scrollable canvas area.
- * Contains only the dot grid and stickers.
+ * Contains a clean, white sticker wall and its stickers.
  * Rejects filterBar and calendar props to enforce separation.
  */
 export default function StickerWorkspace({
-  dark,
-  t,
   taskCount,
   hasActiveFilters,
   maxBottom,
@@ -125,16 +123,15 @@ export default function StickerWorkspace({
   const showEmptyState = isEmpty && !hasActiveFilters;
   const showFilterEmpty = isEmpty && hasActiveFilters;
 
-  const dotGridClass = dark ? "dot-grid-dark" : "dot-grid";
-  const containerBorder = dark ? "border-blue-500/15" : "border-slate-200/60";
-  const canvasBg = dark ? "bg-[#0d1530]/40" : "bg-white/30";
+  const containerBorder = "border-slate-200";
+  const canvasBg = "bg-white";
 
   return (
     <div className="relative z-10 isolate w-full transition-[height] duration-75 ease-linear" style={{ height: `${height}px` }}>
       <div
         ref={viewportRef}
         data-sticker-workspace-viewport
-        className={`absolute inset-0 overflow-y-auto overflow-x-hidden rounded-2xl border scrollbar-thin ${containerBorder} ${dotGridClass} ${canvasBg}`}
+        className={`absolute inset-0 overflow-y-auto overflow-x-hidden rounded-2xl border scrollbar-thin ${containerBorder} ${canvasBg}`}
       >
         <div
           ref={externalCanvasRef}
@@ -149,8 +146,8 @@ export default function StickerWorkspace({
             }
           }}
         >
-          {showEmptyState && <EmptyStateIllustration dark={dark} />}
-          {showFilterEmpty && <FilterEmptyState dark={dark} />}
+          {showEmptyState && <EmptyStateIllustration dark={false} />}
+          {showFilterEmpty && <FilterEmptyState dark={false} />}
           {children}
         </div>
       </div>
