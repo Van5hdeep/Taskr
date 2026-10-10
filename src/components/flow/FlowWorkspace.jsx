@@ -961,7 +961,7 @@ export default function FlowWorkspace({ dark, userId }) {
   const hasContent = scene.nodes.length || scene.edges.length;
 
   return (
-    <main className="mx-auto h-[calc(100vh-88px)] w-full max-w-[1800px] p-3 sm:p-4">
+    <main className="mx-auto h-[calc(100vh-56px)] lg:h-screen w-full max-w-[1800px] p-3 sm:p-4">
       <section className={"flex h-full min-h-[620px] flex-col overflow-hidden rounded-2xl border shadow-sm " + shellClass}>
         <header className={"flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 sm:px-5 " + dividerClass}>
           <div className="flex min-w-0 items-center gap-3">

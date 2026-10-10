@@ -1283,7 +1283,7 @@ export default function TableWorkspace({ t, dark, onSave, userId }) {
 
   // ─── Render ──────────────────────────────────────────────────────────
   return (
-    <div className={`w-full flex flex-col bg-white ${isLocked ? "workspace-locked" : ""}`} style={{ height: "calc(100vh - 56px)" }}>
+    <div className={`w-full flex flex-col bg-white h-[calc(100vh-56px)] lg:h-screen ${isLocked ? "workspace-locked" : ""}`}>
 
       {/* ═══ TITLE BAR ═══ */}
       <div className="flex-none px-5 pt-4 pb-2 flex items-center gap-3 z-50 bg-white">
