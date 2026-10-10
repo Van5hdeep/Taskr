@@ -21,6 +21,7 @@ const DocumentsList = lazy(() => import("./features/workspace/DocumentsList"));
 const DocumentPage = lazy(() => import("./features/workspace/DocumentPage"));
 const FlowPage = lazy(() => import("./features/flow/FlowPage"));
 const SettingsPage = lazy(() => import("./features/settings/SettingsPage"));
+const DevPlayground = import.meta.env.DEV ? lazy(() => import("./features/workspace/DevPlayground")) : null;
 
 function RouteFallback() {
   return (
@@ -77,6 +78,8 @@ const router = createBrowserRouter([
       },
     ],
   },
+  // Development only: editor without sign-in for layout/input checks.
+  ...(DevPlayground ? [{ path: "/dev/workspace", element: withSuspense(DevPlayground) }] : []),
   { path: "*", element: <Navigate to="/" replace /> },
 ]);
 
