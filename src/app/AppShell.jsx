@@ -128,7 +128,7 @@ export default function AppShell() {
       <Toaster position="top-right" theme={dark ? "dark" : "light"} richColors closeButton />
 
       {/* Desktop sidebar */}
-      <aside className={`sticky top-0 hidden h-screen shrink-0 flex-col border-r p-3 transition-[width] duration-200 lg:flex ${sidebarSurface} ${collapsed ? "w-[72px]" : "w-60"}`}>
+      <aside className={`sticky top-0 hidden h-screen shrink-0 print:!hidden flex-col border-r p-3 transition-[width] duration-200 lg:flex ${sidebarSurface} ${collapsed ? "w-[72px]" : "w-60"}`}>
         <div className={`mb-5 flex items-center ${collapsed ? "justify-center" : "justify-between px-2"} pt-1`}>
           {!collapsed && <BrandLogo className="app-wordmark" tone="dark" />}
           <button type="button" onClick={toggleCollapsed} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/5 dark:hover:text-slate-200" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
@@ -139,7 +139,7 @@ export default function AppShell() {
       </aside>
 
       {/* Mobile top bar + drawer */}
-      <div className={`fixed inset-x-0 top-0 z-[110] flex h-14 items-center justify-between border-b px-4 lg:hidden ${sidebarSurface}`}>
+      <div className={`print:hidden fixed inset-x-0 top-0 z-[110] flex h-14 items-center justify-between border-b px-4 lg:hidden ${sidebarSurface}`}>
         <BrandLogo className="app-wordmark" tone="dark" />
         <button type="button" onClick={() => setMobileOpen(true)} className="rounded-lg p-2 text-slate-600 dark:text-slate-300" aria-label="Open navigation">
           <Menu className="h-5 w-5" />
@@ -154,7 +154,7 @@ export default function AppShell() {
         <SidebarContent collapsed={false} onNavigate={() => setMobileOpen(false)} themePreference={preference} onThemeChange={setPreference} />
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col pt-14 lg:pt-0">
+      <div className="flex min-w-0 flex-1 flex-col pt-14 lg:pt-0 print:pt-0">
         <Outlet context={{ t, dark, theme }} />
       </div>
     </div>

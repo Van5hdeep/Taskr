@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { createBrowserRouter, Navigate, RouterProvider, useNavigate } from "react-router";
 import { Loader2 } from "lucide-react";
 import { AuthProvider } from "./lib/auth/AuthProvider";
+import { ProfileProvider } from "./lib/profile";
 import { RedirectIfAuthed, RequireAuth } from "./lib/auth/RequireAuth";
 import { ThemeProvider } from "./lib/theme";
 import { ConfirmProvider } from "./components/ui/ConfirmDialog";
@@ -66,7 +67,7 @@ const router = createBrowserRouter([
         children: [
           { path: "/home", element: withSuspense(HomeRoute), errorElement: <RouteError /> },
           { path: "/sticker", element: withSuspense(StickerRoute), errorElement: <RouteError /> },
-          { path: "/finance", element: withSuspense(FinancePage), errorElement: <RouteError /> },
+          { path: "/finance/:tab?", element: withSuspense(FinancePage), errorElement: <RouteError /> },
           { path: "/workspace", element: withSuspense(WorkspacePage), errorElement: <RouteError /> },
           { path: "/flow", element: withSuspense(FlowPage), errorElement: <RouteError /> },
           { path: "/settings", element: withSuspense(SettingsPage), errorElement: <RouteError /> },
@@ -81,9 +82,11 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <ConfirmProvider>
-          <RouterProvider router={router} />
-        </ConfirmProvider>
+        <ProfileProvider>
+          <ConfirmProvider>
+            <RouterProvider router={router} />
+          </ConfirmProvider>
+        </ProfileProvider>
       </AuthProvider>
     </ThemeProvider>
   );

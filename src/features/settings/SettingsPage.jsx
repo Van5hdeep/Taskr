@@ -5,7 +5,7 @@ import { usePageContext } from "../../app/usePageContext";
 import { useAuth } from "../../lib/auth/AuthProvider";
 import { formatSupabaseError, supabase } from "../../lib/supabase";
 import StatusBanner from "../../components/ui/StatusBanner";
-import { getProfile, PROFILE_DEFAULTS, updateProfile } from "./api";
+import { useProfile } from "../../lib/profile";
 
 const CURRENCIES = ["INR", "USD", "EUR", "GBP", "AED", "SGD", "AUD", "CAD", "JPY"];
 const WEEK_STARTS = [{ value: 1, label: "Monday" }, { value: 0, label: "Sunday" }, { value: 6, label: "Saturday" }];
@@ -36,8 +36,9 @@ function Field({ label, children }) {
 
 export default function SettingsPage() {
   const { t, theme } = usePageContext();
-  const { user, userId, email, isGuest } = useAuth();
-  const [profile, setProfile] = useState(null);
+  const { email, isGuest } = useAuth();
+  const { profile: savedProfile, error: profileError, save } = useProfile();
+  const [profile, setProfile] = useState(savedProfile);
   const [loadError, setLoadError] = useState(null);
   const [savingProfile, setSavingProfile] = useState(false);
 
@@ -48,16 +49,12 @@ export default function SettingsPage() {
   const [accountError, setAccountError] = useState(null);
 
   useEffect(() => {
-    let active = true;
-    getProfile(userId)
-      .then((data) => { if (active) setProfile(data); })
-      .catch((err) => {
-        if (!active) return;
-        setLoadError(formatSupabaseError(err));
-        setProfile({ id: userId, ...PROFILE_DEFAULTS, display_name: user?.user_metadata?.full_name ?? "" });
-      });
-    return () => { active = false; };
-  }, [user, userId]);
+    if (savedProfile && !profile) setProfile(savedProfile);
+  }, [savedProfile, profile]);
+
+  useEffect(() => {
+    if (profileError) setLoadError(formatSupabaseError(profileError));
+  }, [profileError]);
 
   const inputClass = `w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none ${t.input}`;
 
@@ -66,7 +63,7 @@ export default function SettingsPage() {
     setSavingProfile(true);
     try {
       const { display_name: displayName, currency, week_starts_on: weekStartsOn } = profile;
-      const saved = await updateProfile(userId, { display_name: displayName?.trim() || null, currency, week_starts_on: Number(weekStartsOn), theme: theme.preference });
+      const saved = await save({ display_name: displayName?.trim() || null, currency, week_starts_on: Number(weekStartsOn), theme: theme.preference });
       setProfile(saved);
       if (!isGuest) await supabase.auth.updateUser({ data: { full_name: displayName?.trim() || "" } });
       setLoadError(null);
