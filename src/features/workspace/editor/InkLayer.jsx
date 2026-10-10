@@ -69,7 +69,7 @@ export default function InkLayer({ elements, onCommit, tool, color, width, zoom,
     api.updateScene({
       appState: {
         currentItemStrokeColor: color,
-        currentItemStrokeWidth: highlighter ? Math.max(width * 4, 12) : width,
+        currentItemStrokeWidth: width,
         currentItemOpacity: highlighter ? 35 : 100,
         currentItemRoughness: 0,
         currentItemStrokeStyle: "solid",

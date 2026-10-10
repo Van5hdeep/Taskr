@@ -22,6 +22,23 @@ const COLORS = ["#0f172a", "#2563eb", "#dc2626", "#16a34a", "#9333ea", "#ea580c"
 const INK_COLORS = ["#1e1e1e", "#2563eb", "#dc2626", "#16a34a", "#9333ea", "#ea580c"];
 const HIGHLIGHT_COLORS = ["#facc15", "#4ade80", "#60a5fa", "#f472b6", "#c084fc"];
 const CREATION_TOOLS = ["text", "table", "shape", "note"];
+
+// Excalidraw draws freedraw about 4.25 × strokeWidth pixels thick, so note-
+// taking needs strokeWidths well below 1. Labels show the visible thickness.
+const PEN_SIZES = [
+  { id: "xfine", label: "Extra fine", width: 0.25 },
+  { id: "fine", label: "Fine", width: 0.4 },
+  { id: "medium", label: "Medium", width: 0.65 },
+  { id: "bold", label: "Bold", width: 1 },
+  { id: "marker", label: "Marker", width: 2 },
+  { id: "heavy", label: "Heavy", width: 4 },
+];
+const HIGHLIGHTER_SIZES = [
+  { id: "thin", label: "Thin", width: 2 },
+  { id: "regular", label: "Regular", width: 3.5 },
+  { id: "wide", label: "Wide", width: 5 },
+];
+const visiblePx = (width) => Math.max(0.5, Math.round(width * 4.25 * 2) / 2);
 const INK_TOOLS = ["pen", "highlighter", "eraser"];
 
 const isTypingTarget = (element) => element && (["INPUT", "TEXTAREA", "SELECT"].includes(element.tagName) || element.isContentEditable);
@@ -80,7 +97,8 @@ export default function DocumentEditor({ documentId, title, content, commit, und
   const [noteColor, setNoteColor] = useState(NOTE_COLORS[0]);
   const [inkColor, setInkColor] = useState(INK_COLORS[0]);
   const [highlightColor, setHighlightColor] = useState(HIGHLIGHT_COLORS[0]);
-  const [inkWidth, setInkWidth] = useState(2);
+  const [penWidth, setPenWidth] = useState(PEN_SIZES[1].width);
+  const [highlighterWidth, setHighlighterWidth] = useState(HIGHLIGHTER_SIZES[1].width);
   const [selection, setSelection] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [activeEditor, setActiveEditor] = useState(null);
@@ -574,7 +592,31 @@ export default function DocumentEditor({ documentId, title, content, commit, und
                   <>
                     <Swatches colors={tool === "highlighter" ? HIGHLIGHT_COLORS : INK_COLORS} value={tool === "highlighter" ? highlightColor : inkColor} onPick={tool === "highlighter" ? setHighlightColor : setInkColor} />
                     <Divider />
-                    <label className="flex items-center gap-2 text-xs text-slate-500">Width <input type="range" min="1" max="8" step="1" value={inkWidth} onChange={(event) => setInkWidth(Number(event.target.value))} className="w-24 accent-blue-600" /></label>
+                    <div className="flex items-center gap-1" role="radiogroup" aria-label="Thickness">
+                      {(tool === "highlighter" ? HIGHLIGHTER_SIZES : PEN_SIZES).map((size) => {
+                        const current = tool === "highlighter" ? highlighterWidth : penWidth;
+                        const px = visiblePx(size.width);
+                        return (
+                          <button
+                            key={size.id}
+                            type="button"
+                            role="radio"
+                            aria-checked={current === size.width}
+                            title={`${size.label} (~${px}px)`}
+                            onClick={() => (tool === "highlighter" ? setHighlighterWidth(size.width) : setPenWidth(size.width))}
+                            className={`flex h-8 w-10 items-center justify-center rounded-md ${current === size.width ? "bg-blue-100 ring-1 ring-blue-400" : "hover:bg-slate-100"}`}
+                          >
+                            <span className="block w-6 rounded-full" style={{ height: Math.min(px, 14), backgroundColor: tool === "highlighter" ? highlightColor : inkColor, opacity: tool === "highlighter" ? 0.5 : 1 }} />
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {tool === "pen" && (
+                      <label className="ml-1 flex items-center gap-2 text-xs text-slate-500">
+                        <input type="range" min="0.15" max="4" step="0.05" value={penWidth} onChange={(event) => setPenWidth(Number(event.target.value))} className="w-24 accent-blue-600" aria-label="Fine-tune pen thickness" />
+                        <span className="w-12 tabular-nums">~{visiblePx(penWidth)}px</span>
+                      </label>
+                    )}
                   </>
                 )}
                 {hint && <span className="text-xs text-slate-500">{hint}</span>}
@@ -674,7 +716,7 @@ export default function DocumentEditor({ documentId, title, content, commit, und
               onCommit={commitInk}
               tool={tool}
               color={tool === "highlighter" ? highlightColor : inkColor}
-              width={inkWidth}
+              width={tool === "highlighter" ? highlighterWidth : penWidth}
               zoom={zoom}
               documentHeight={documentHeight}
               locked={locked}
