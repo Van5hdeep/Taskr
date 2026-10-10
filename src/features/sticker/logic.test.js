@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { flagsForQuadrant, nextOccurrence, normalizeSubTasks, parseCapture, quadrantOf, deadlineState, formatCountdown } from "./logic";
+import { compareTasks, deadlineState, flagsForQuadrant, formatCountdown, matchesFilters, nextOccurrence, normalizeSubTasks, parseCapture, quadrantOf, reviewQueue } from "./logic";
 
 // Saturday 10 Oct 2026, 14:00 local time.
 const NOW = new Date(2026, 9, 10, 14, 0, 0);
@@ -62,6 +62,38 @@ describe("normalizeSubTasks", () => {
     const result = normalizeSubTasks(["a", { text: "b", completed: true }, { id: "x", label: "c", done: false }, { text: "  " }, null]);
     expect(result.map((item) => [item.label, item.done])).toEqual([["a", false], ["b", true], ["c", false]]);
     expect(result[2].id).toBe("x");
+  });
+});
+
+describe("filters, sorting and review", () => {
+  const base = { title: "t", notes: "", tags: [], subTasks: [], completedAt: null, archivedAt: null, createdAt: NOW, sortOrder: 0 };
+  const overdue = { ...base, id: "a", title: "Overdue", deadline: new Date(2026, 9, 9), tags: ["home"] };
+  const today = { ...base, id: "b", title: "Today", deadline: new Date(2026, 9, 10, 18) };
+  const nextWeek = { ...base, id: "c", title: "Later", deadline: new Date(2026, 9, 20) };
+  const done = { ...base, id: "d", title: "Done", completedAt: NOW };
+  const archived = { ...base, id: "e", title: "Gone", archivedAt: NOW };
+  const urgentImportant = { ...base, id: "f", title: "Big", isUrgent: true, isImportant: true };
+  const all = [nextWeek, today, overdue, done, archived, urgentImportant];
+  const ids = (list) => list.map((task) => task.id);
+  const now = NOW.getTime();
+
+  it("filters by status, due window, tag and text", () => {
+    expect(ids(all.filter((task) => matchesFilters(task, { status: "open" }, now)))).toEqual(["c", "b", "a", "f"]);
+    expect(ids(all.filter((task) => matchesFilters(task, { status: "done" }, now)))).toEqual(["d"]);
+    expect(ids(all.filter((task) => matchesFilters(task, { status: "archived" }, now)))).toEqual(["e"]);
+    expect(ids(all.filter((task) => matchesFilters(task, { due: "overdue" }, now)))).toEqual(["a"]);
+    expect(ids(all.filter((task) => matchesFilters(task, { due: "today" }, now)))).toEqual(["b"]);
+    expect(ids(all.filter((task) => matchesFilters(task, { due: "none" }, now)))).toEqual(["f"]);
+    expect(ids(all.filter((task) => matchesFilters(task, { tag: "home" }, now)))).toEqual(["a"]);
+    expect(ids(all.filter((task) => matchesFilters(task, { q: "tod" }, now)))).toEqual(["b"]);
+  });
+
+  it("sorts overdue first then by deadline", () => {
+    expect(ids([nextWeek, urgentImportant, today, overdue].sort((x, y) => compareTasks(x, y, now)))).toEqual(["a", "b", "c", "f"]);
+  });
+
+  it("builds the review queue", () => {
+    expect(ids(reviewQueue(all, now))).toEqual(["a", "b", "f"]);
   });
 });
 

@@ -125,6 +125,73 @@ export function normalizeSubTasks(raw) {
     .filter((item) => item && item.label.trim());
 }
 
+// ─── Filtering & sorting ───────────────────────────────────────────────────
+
+export const DEFAULT_FILTERS = { q: "", tag: "", due: "all", status: "open" };
+
+function startOfDay(ms) {
+  const date = new Date(ms);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+}
+
+export function matchesFilters(task, filters, now = Date.now()) {
+  const { q = "", tag = "", due = "all", status = "open" } = filters;
+
+  if (status === "archived") { if (!task.archivedAt) return false; }
+  else if (task.archivedAt) return false;
+  else if (status === "done" && !task.completedAt) return false;
+  else if (status === "open" && task.completedAt) return false;
+
+  if (tag && !(task.tags ?? []).includes(tag)) return false;
+
+  if (q) {
+    const needle = q.toLowerCase();
+    const haystack = [task.title, task.notes, ...(task.tags ?? []), ...(task.subTasks ?? []).map((st) => st.label)].join(" ").toLowerCase();
+    if (!haystack.includes(needle)) return false;
+  }
+
+  if (due !== "all") {
+    const deadline = task.deadline ? new Date(task.deadline).getTime() : null;
+    const todayStart = startOfDay(now);
+    const dayMs = 24 * 60 * 60 * 1000;
+    if (due === "none") return deadline == null;
+    if (deadline == null) return false;
+    if (due === "overdue") return deadline < now && !task.completedAt;
+    if (due === "today") return deadline >= todayStart && deadline < todayStart + dayMs;
+    if (due === "week") return deadline >= todayStart && deadline < todayStart + 7 * dayMs;
+  }
+  return true;
+}
+
+/** Overdue first, then nearest deadline, then manual order, then newest. */
+export function compareTasks(a, b, now = Date.now()) {
+  const da = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+  const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+  const oa = da < now ? 0 : 1;
+  const ob = db < now ? 0 : 1;
+  if (oa !== ob) return oa - ob;
+  if (da !== db) return da - db;
+  if ((a.sortOrder ?? 0) !== (b.sortOrder ?? 0)) return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+  return new Date(b.createdAt ?? 0) - new Date(a.createdAt ?? 0);
+}
+
+export function collectTags(tasks) {
+  return [...new Set(tasks.flatMap((task) => task.tags ?? []))].sort();
+}
+
+/** Queue for the daily review: overdue, due today, then remaining "Do first". */
+export function reviewQueue(tasks, now = Date.now()) {
+  const todayEnd = startOfDay(now) + 24 * 60 * 60 * 1000;
+  return tasks
+    .filter((task) => !task.completedAt && !task.archivedAt)
+    .filter((task) => {
+      const deadline = task.deadline ? new Date(task.deadline).getTime() : null;
+      return (deadline != null && deadline < todayEnd) || quadrantOf(task) === "do";
+    })
+    .sort((a, b) => compareTasks(a, b, now));
+}
+
 // ─── Deadlines ─────────────────────────────────────────────────────────────
 
 export function deadlineState(deadline, now = Date.now()) {

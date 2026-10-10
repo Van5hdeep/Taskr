@@ -35,7 +35,7 @@ function EmptyStateIllustration({ dark }) {
         No stickers yet
       </h3>
       <p className={`text-sm text-center max-w-xs leading-relaxed ${dark ? "text-slate-400" : "text-zinc-500"}`}>
-        Use the Task Dump to create your first task.
+        Capture a task above and it will appear here.
       </p>
     </div>
   );
