@@ -454,3 +454,28 @@
   .landing-footer-top .landing-footer-links { width: 100%; justify-content: center; gap: 60px; }
   .landing-footer-wordmark { margin-top: 48px; }
 }
+
+/* ── Workspace page backgrounds ── */
+.page-lined { background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 31px, #c7d2fe 31px, #c7d2fe 32px); background-position: 0 72px; background-size: 100% 32px; }
+.page-grid { background-image: linear-gradient(#e2e8f0 1px, transparent 1px), linear-gradient(90deg, #e2e8f0 1px, transparent 1px); background-size: 24px 24px; }
+.page-dotted { background-image: radial-gradient(#94a3b8 1.1px, transparent 1.2px); background-size: 24px 24px; }
+
+/* ── Rich text inside Workspace text boxes (Tiptap) ── */
+.taskr-rich { line-height: 1.5; word-break: break-word; }
+.taskr-rich > * + * { margin-top: 0.35em; }
+.taskr-rich h1 { font-size: 1.9em; font-weight: 800; line-height: 1.2; letter-spacing: -0.01em; }
+.taskr-rich h2 { font-size: 1.45em; font-weight: 750; line-height: 1.25; }
+.taskr-rich h3 { font-size: 1.15em; font-weight: 700; }
+.taskr-rich ul { list-style: disc; padding-left: 1.4em; }
+.taskr-rich ol { list-style: decimal; padding-left: 1.4em; }
+.taskr-rich li > p { margin: 0; }
+.taskr-rich a { color: #2563eb; text-decoration: underline; }
+.taskr-rich mark { border-radius: 2px; padding: 0 1px; }
+.taskr-rich blockquote { border-left: 3px solid #cbd5e1; padding-left: 0.8em; color: #475569; }
+.taskr-rich code { background: #f1f5f9; border-radius: 4px; padding: 0 3px; font-size: 0.9em; }
+.taskr-rich ul[data-type="taskList"] { list-style: none; padding-left: 0.2em; }
+.taskr-rich ul[data-type="taskList"] li { display: flex; gap: 0.5em; align-items: flex-start; }
+.taskr-rich ul[data-type="taskList"] li > label { margin-top: 0.2em; user-select: none; }
+.taskr-rich ul[data-type="taskList"] li > div { flex: 1; }
+.taskr-rich ul[data-type="taskList"] li[data-checked="true"] > div { text-decoration: line-through; color: #94a3b8; }
+.taskr-rich p.is-editor-empty:first-child::before { content: "Type here…"; color: #94a3b8; float: left; height: 0; pointer-events: none; }

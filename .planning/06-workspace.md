@@ -8,7 +8,7 @@
 |---|---|
 | One document per user in localStorage | Can't have more than one note; not synced |
 | Images stored as base64 inside the document | Hits the ~5MB localStorage limit fast; slow |
-| Excalidraw used only for ink | ~3.5MB of extra JS, plus a 1.7MB main bundle; two ink systems (legacy canvas + Excalidraw) |
+| Two ink systems (legacy canvas + Excalidraw); Excalidraw loaded in the main bundle | Merged into Excalidraw only, lazy-loaded with the Workspace route |
 | Formatting applies to the whole text box | No per-word bold, lists, headings or links |
 | Tables: fixed rows/cols after creation | Can't add or remove rows or columns |
 | Keyboard handler has stale closures (`updateBlock`, `deleteBlock`, `duplicateBlock` missing from deps) | Shortcuts act on outdated state |
@@ -22,7 +22,7 @@
 1. **Documents list** (`/workspace`): grid/list of documents with title, updated time, pin, archive, duplicate, search. Opening one goes to `/workspace/:docId`.
 2. **Cloud autosave** of `documents.content` (debounced) with a status pill; crash buffer in localStorage.
 3. **Images → Supabase Storage** (`workspace-assets/{uid}/{docId}/...`): upload with progress, drag-drop and paste from the clipboard, resize, aspect-lock with Shift.
-4. **Ink rebuilt with `perfect-freehand`**: pressure-aware pen, highlighter (semi-transparent, wide), stroke eraser (hit-test whole strokes), colour and width. Strokes stored as point arrays in `content.ink` with `pageId`. Excalidraw and the legacy canvas are removed; old ink is converted on load (Excalidraw freedraw points → our stroke format).
+4. **Ink stays on Excalidraw** (decision 2026-10-11: owner prefers it; MIT licence). Pen, highlighter (low-opacity freedraw), Excalidraw eraser, colour and width, with its toolbar hidden. Ink lives in `content.ink` as Excalidraw elements in document coordinates; page delete/reorder moves strokes with their page. The legacy canvas annotations are converted to freedraw elements. Excalidraw loads only with the Workspace route chunk.
 5. **Rich text boxes (Tiptap)**: bold, italic, underline, strike, highlight, text colour, headings H1–H3, bullet/numbered/check lists, links, alignment. The toolbar acts on the selection, not the whole box. Existing plain text boxes are migrated to Tiptap JSON (the old box-level styles become marks on all text).
 6. **Tables**: add/remove row and column (context menu on a cell), Tab moves between cells, column resize, header-row toggle.
 7. **Selection**: multi-select (Shift-click, box-select), group move, align/distribute, bring forward / send back, snap-to-guides against page margins and other blocks.
@@ -49,7 +49,7 @@ The **free-placement A4 notebook with handwriting, rich text and tables, which p
   "version": 2,
   "pages": [{ "id": "p1", "style": "plain" }],
   "blocks": [{ "id": "...", "pageId": "p1", "type": "text|table|shape|sticker|image", "x": 0, "y": 0, "width": 0, "height": 0, "z": 0, "...type-specific": "" }],
-  "ink": [{ "id": "...", "pageId": "p1", "tool": "pen|highlighter", "color": "#000", "size": 2, "points": [[x, y, pressure]] }]
+  "ink": [ /* Excalidraw elements, document coordinates */ ]
 }
 ```
 Text block `doc` = Tiptap JSON. Image block `src` = storage path (signed URL resolved at render).
@@ -64,5 +64,5 @@ Text block `doc` = Tiptap JSON. Image block `src` = storage path (signed URL res
 - Paste a screenshot → uploaded to Storage; the document JSON holds only a path.
 - Bold one word inside a text box; the rest is unchanged.
 - Ink with a pen looks pressure-sensitive; the eraser removes whole strokes; undo restores them.
-- The production build no longer contains Excalidraw chunks; the Workspace route chunk is < 250KB gzip.
+- Excalidraw is only downloaded when the Workspace is opened (not on landing, auth or other tools).
 - The exported PDF matches the on-screen pages.

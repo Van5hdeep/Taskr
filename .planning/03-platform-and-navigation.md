@@ -81,7 +81,7 @@ Each widget links to its tool. Empty states teach the tool in one line.
 - **Reminders**: browser Notification API (permission asked from Settings, never on load) + in-app toasts. Only for tasks with `remind_at` and bills due. Runs while the app is open (push notifications are out of scope for v1).
 - **Theme**: system / light / dark from `profiles.theme`, applied with a `data-theme` attribute. The redesign will restyle it; this phase only wires the toggle.
 - **Error boundaries** per route so one tool crashing doesn't blank the app.
-- **Performance**: each tool is a lazy route chunk. Excalidraw is removed (see Workspace). Target: main chunk < 300KB gzip.
+- **Performance**: each tool is a lazy route chunk; Excalidraw only loads with Workspace. Target: main chunk < 300KB gzip.
 
 ## Libraries to add (verify the latest stable version at install)
 | Library | Why |
@@ -90,10 +90,10 @@ Each widget links to its tool. Empty states teach the tool in one line.
 | `cmdk` | Command palette primitive |
 | `chrono-node` | Natural-language date parsing (quick capture, task deadlines) |
 | `@xyflow/react` + `@dagrejs/dagre` | Flow editor + auto-layout |
-| `perfect-freehand` | Workspace ink (replaces Excalidraw) |
+| `@excalidraw/excalidraw` (kept) | Workspace ink, lazy-loaded with the Workspace route |
 | `@tiptap/react` + starter-kit (+ underline, highlight, text-style, color, link) | Rich text inside Workspace text boxes |
 | `papaparse` | CSV import/export (finance) |
 | `jspdf` *(or the existing hand-written PDF writer in Flow)* | Workspace PDF export |
 | `date-fns` | Date maths (recurrence, periods) |
 
-To remove: `@excalidraw/excalidraw`, `gsap` and `animejs` (the last two are already imported nowhere in `src/`).
+Removed: `gsap` and `animejs`. Excalidraw stays (owner decision) but only loads with the Workspace route.

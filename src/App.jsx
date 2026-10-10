@@ -17,7 +17,8 @@ import ResetPasswordPage from "./features/auth/ResetPasswordPage";
 const HomeRoute = lazy(() => import("./features/home/HomeRoute"));
 const StickerRoute = lazy(() => import("./features/sticker/StickerRoute"));
 const FinancePage = lazy(() => import("./features/finance/FinancePage"));
-const WorkspacePage = lazy(() => import("./features/workspace/WorkspacePage"));
+const DocumentsList = lazy(() => import("./features/workspace/DocumentsList"));
+const DocumentPage = lazy(() => import("./features/workspace/DocumentPage"));
 const FlowPage = lazy(() => import("./features/flow/FlowPage"));
 const SettingsPage = lazy(() => import("./features/settings/SettingsPage"));
 
@@ -68,7 +69,8 @@ const router = createBrowserRouter([
           { path: "/home", element: withSuspense(HomeRoute), errorElement: <RouteError /> },
           { path: "/sticker", element: withSuspense(StickerRoute), errorElement: <RouteError /> },
           { path: "/finance/:tab?", element: withSuspense(FinancePage), errorElement: <RouteError /> },
-          { path: "/workspace", element: withSuspense(WorkspacePage), errorElement: <RouteError /> },
+          { path: "/workspace", element: withSuspense(DocumentsList), errorElement: <RouteError /> },
+          { path: "/workspace/:docId", element: withSuspense(DocumentPage), errorElement: <RouteError /> },
           { path: "/flow", element: withSuspense(FlowPage), errorElement: <RouteError /> },
           { path: "/settings", element: withSuspense(SettingsPage), errorElement: <RouteError /> },
         ],
