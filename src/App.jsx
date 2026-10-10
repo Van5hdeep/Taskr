@@ -19,9 +19,11 @@ const StickerRoute = lazy(() => import("./features/sticker/StickerRoute"));
 const FinancePage = lazy(() => import("./features/finance/FinancePage"));
 const DocumentsList = lazy(() => import("./features/workspace/DocumentsList"));
 const DocumentPage = lazy(() => import("./features/workspace/DocumentPage"));
-const FlowPage = lazy(() => import("./features/flow/FlowPage"));
+const FlowsList = lazy(() => import("./features/flow/FlowsList"));
+const FlowEditorPage = lazy(() => import("./features/flow/FlowEditorPage"));
 const SettingsPage = lazy(() => import("./features/settings/SettingsPage"));
 const DevPlayground = import.meta.env.DEV ? lazy(() => import("./features/workspace/DevPlayground")) : null;
+const DevFlowPlayground = import.meta.env.DEV ? lazy(() => import("./features/flow/DevFlowPlayground")) : null;
 
 function RouteFallback() {
   return (
@@ -72,7 +74,8 @@ const router = createBrowserRouter([
           { path: "/finance/:tab?", element: withSuspense(FinancePage), errorElement: <RouteError /> },
           { path: "/workspace", element: withSuspense(DocumentsList), errorElement: <RouteError /> },
           { path: "/workspace/:docId", element: withSuspense(DocumentPage), errorElement: <RouteError /> },
-          { path: "/flow", element: withSuspense(FlowPage), errorElement: <RouteError /> },
+          { path: "/flow", element: withSuspense(FlowsList), errorElement: <RouteError /> },
+          { path: "/flow/:flowId", element: withSuspense(FlowEditorPage), errorElement: <RouteError /> },
           { path: "/settings", element: withSuspense(SettingsPage), errorElement: <RouteError /> },
         ],
       },
@@ -80,6 +83,7 @@ const router = createBrowserRouter([
   },
   // Development only: editor without sign-in for layout/input checks.
   ...(DevPlayground ? [{ path: "/dev/workspace", element: withSuspense(DevPlayground) }] : []),
+  ...(DevFlowPlayground ? [{ path: "/dev/flow", element: withSuspense(DevFlowPlayground) }] : []),
   { path: "*", element: <Navigate to="/" replace /> },
 ]);
 

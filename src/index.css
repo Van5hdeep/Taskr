@@ -479,3 +479,8 @@
 .taskr-rich ul[data-type="taskList"] li > div { flex: 1; }
 .taskr-rich ul[data-type="taskList"] li[data-checked="true"] > div { text-decoration: line-through; color: #94a3b8; }
 .taskr-rich p.is-editor-empty:first-child::before { content: "Type here…"; color: #94a3b8; float: left; height: 0; pointer-events: none; }
+
+/* ── Flow editor ── */
+.react-flow .taskr-flow-handle { width: 10px; height: 10px; border: 2px solid #ffffff; background: #2563eb; opacity: 0; transition: opacity 120ms ease; }
+.react-flow__node:hover .taskr-flow-handle, .react-flow__node.selected .taskr-flow-handle, .react-flow.connecting .taskr-flow-handle { opacity: 1; }
+.react-flow__edge-textbg { stroke: #e2e8f0; stroke-width: 1; }
