@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { AlertTriangle, ArrowLeft, Loader2, RotateCcw } from "lucide-react";
 import SaveStatus from "../../components/ui/SaveStatus";
+import { LinkedItemsButton } from "../links/LinkedItems";
 import { toast } from "sonner";
 import { formatSupabaseError } from "../../lib/supabase";
 import { readCrashBuffer, useAutosave } from "../../lib/useAutosave";
@@ -70,6 +71,7 @@ function LoadedDocument({ row }) {
           placeholder="Untitled document"
           className="min-w-0 flex-1 rounded-md bg-transparent px-1 text-lg font-bold text-slate-900 outline-none hover:bg-slate-50 focus:bg-slate-50 focus:ring-2 focus:ring-blue-200"
         />
+        <LinkedItemsButton type="document" id={row.id} />
         <SaveStatus status={autosave.status} />
       </header>
 

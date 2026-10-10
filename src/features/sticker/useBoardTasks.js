@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { formatSupabaseError } from "../../lib/supabase";
 import * as api from "./api";
-import { nextOccurrence } from "./logic";
 
 /**
  * Tasks of one board with optimistic updates. Every mutation updates local
@@ -94,26 +93,12 @@ export function useBoardTasks(boardId) {
     if (!saved) return;
 
     let spawned = null;
-    const nextDeadline = task.recurrence && task.deadline ? nextOccurrence(task.deadline, task.recurrence) : null;
-    if (nextDeadline) {
-      const offset = task.remindAt && task.deadline ? task.deadline.getTime() - task.remindAt.getTime() : null;
-      try {
-        spawned = await create({
-          title: task.title,
-          notes: task.notes,
-          subTasks: task.subTasks.map((st) => ({ ...st, done: false })),
-          isUrgent: task.isUrgent,
-          isImportant: task.isImportant,
-          deadline: nextDeadline,
-          remindAt: offset != null ? new Date(nextDeadline.getTime() - offset) : null,
-          recurrence: task.recurrence,
-          color: task.color,
-          tags: task.tags,
-        });
-      } catch { /* create() already reported the error */ }
+    const next = api.nextOccurrenceFields(task);
+    if (next) {
+      try { spawned = await create(next); } catch { /* create() already reported the error */ }
     }
 
-    toast.success(spawned ? `Done — next one scheduled for ${nextDeadline.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}` : `Done: "${task.title}"`, {
+    toast.success(spawned ? `Done — next one scheduled for ${next.deadline.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}` : `Done: "${task.title}"`, {
       action: {
         label: "Undo",
         onClick: async () => {

@@ -1,5 +1,5 @@
 import { supabase } from "../../lib/supabase";
-import { normalizeSubTasks } from "./logic";
+import { nextOccurrence, normalizeSubTasks } from "./logic";
 
 // ─── Row mapping ───────────────────────────────────────────────────────────
 
@@ -137,6 +137,44 @@ export async function updateTask(id, patch) {
   const { data, error } = await supabase.from("tasks").update(taskToRow(patch)).eq("id", id).select().single();
   if (error) throw error;
   return taskFromRow(data);
+}
+
+/** Fields for the next copy of a recurring task, or null when it doesn't repeat. */
+export function nextOccurrenceFields(task) {
+  const nextDeadline = task.recurrence && task.deadline ? nextOccurrence(task.deadline, task.recurrence) : null;
+  if (!nextDeadline) return null;
+  const offset = task.remindAt && task.deadline ? task.deadline.getTime() - task.remindAt.getTime() : null;
+  return {
+    title: task.title,
+    notes: task.notes,
+    subTasks: task.subTasks.map((st) => ({ ...st, done: false })),
+    isUrgent: task.isUrgent,
+    isImportant: task.isImportant,
+    deadline: nextDeadline,
+    remindAt: offset != null ? new Date(nextDeadline.getTime() - offset) : null,
+    recurrence: task.recurrence,
+    color: task.color,
+    tags: task.tags,
+  };
+}
+
+/** Completes a task outside the board view (Home); returns the spawned repeat, if any. */
+export async function completeTask(task) {
+  await updateTask(task.id, { completedAt: new Date() });
+  const next = nextOccurrenceFields(task);
+  return next ? createTask(task.boardId, next) : null;
+}
+
+export async function listOpenTasks() {
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("*")
+    .is("completed_at", null)
+    .is("archived_at", null)
+    .order("deadline", { ascending: true, nullsFirst: false })
+    .limit(300);
+  if (error) throw error;
+  return (data ?? []).map(taskFromRow);
 }
 
 export async function deleteTask(id) {

@@ -128,6 +128,19 @@ export default function StickerPage() {
   const hasActiveFilters = Boolean(filters.q || filters.tag || filters.due !== "all" || filters.status !== "open");
   const editingTask = tasks.find((task) => task.id === editingId) ?? null;
 
+  // Deep link (?task=<id>) from search, Home or a linked document opens its editor.
+  const linkedTaskId = params.get("task");
+  useEffect(() => {
+    if (!linkedTaskId || loading) return;
+    const task = tasks.find((item) => item.id === linkedTaskId);
+    if (task) {
+      setEditingId(task.id);
+      if (task.completedAt) setParam("status", "done", "open");
+      if (task.archivedAt) setParam("status", "archived", "open");
+    }
+    setParam("task", "");
+  }, [linkedTaskId, loading, tasks, setParam]);
+
   const handleCreateBoard = async (name) => {
     try {
       const created = await api.createBoard({ name });

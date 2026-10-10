@@ -24,6 +24,7 @@ const FlowEditorPage = lazy(() => import("./features/flow/FlowEditorPage"));
 const SettingsPage = lazy(() => import("./features/settings/SettingsPage"));
 const DevPlayground = import.meta.env.DEV ? lazy(() => import("./features/workspace/DevPlayground")) : null;
 const DevFlowPlayground = import.meta.env.DEV ? lazy(() => import("./features/flow/DevFlowPlayground")) : null;
+const DevOverlaysPlayground = import.meta.env.DEV ? lazy(() => import("./app/DevOverlaysPlayground")) : null;
 
 function RouteFallback() {
   return (
@@ -84,6 +85,7 @@ const router = createBrowserRouter([
   // Development only: editor without sign-in for layout/input checks.
   ...(DevPlayground ? [{ path: "/dev/workspace", element: withSuspense(DevPlayground) }] : []),
   ...(DevFlowPlayground ? [{ path: "/dev/flow", element: withSuspense(DevFlowPlayground) }] : []),
+  ...(DevOverlaysPlayground ? [{ path: "/dev/overlays", element: withSuspense(DevOverlaysPlayground) }] : []),
   { path: "*", element: <Navigate to="/" replace /> },
 ]);
 

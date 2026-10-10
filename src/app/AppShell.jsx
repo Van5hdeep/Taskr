@@ -2,13 +2,15 @@ import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { Toaster } from "sonner";
 import {
-  ChevronsLeft, ChevronsRight, GitMerge, LayoutGrid, LogOut, Menu, Monitor, Moon,
+  ChevronsLeft, ChevronsRight, GitMerge, Plus, Search, LayoutGrid, LogOut, Menu, Monitor, Moon,
   PenTool, PieChart, Settings, StickyNote, Sun, UserRound, X,
 } from "lucide-react";
 import { useAuth } from "../lib/auth/AuthProvider";
 import { useAppTheme, useTheme } from "../lib/theme";
 import { useConfirm } from "../components/ui/ConfirmDialog";
 import BrandLogo from "../components/BrandLogo";
+import GlobalOverlays from "./GlobalOverlays";
+import { openCommandPalette, openQuickCapture } from "./globalEvents";
 
 export const NAV_ITEMS = [
   { to: "/home", label: "Home", icon: LayoutGrid },
@@ -49,6 +51,14 @@ function SidebarContent({ collapsed, onNavigate, themePreference, onThemeChange 
 
   return (
     <div className="flex h-full flex-col">
+      <div className={`mb-3 grid gap-1.5 ${collapsed ? "" : "grid-cols-2"}`}>
+        <button type="button" onClick={() => { onNavigate?.(); openCommandPalette(); }} title="Search and commands (Ctrl+K)" className={`flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-2 py-2 text-xs font-semibold text-slate-600 hover:border-blue-300 dark:border-white/10 dark:text-slate-300`}>
+          <Search className="h-4 w-4" />{!collapsed && "Search"}
+        </button>
+        <button type="button" onClick={() => { onNavigate?.(); openQuickCapture("task"); }} title="Quick add (Alt+N)" className="flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-2 py-2 text-xs font-bold text-white hover:bg-blue-700">
+          <Plus className="h-4 w-4" />{!collapsed && "Add"}
+        </button>
+      </div>
       <nav className="flex-1 space-y-1" aria-label="Main">
         {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
           <NavLink key={to} to={to} className={linkClass} onClick={onNavigate} title={collapsed ? label : undefined}>
@@ -126,6 +136,7 @@ export default function AppShell() {
   return (
     <div className={`flex min-h-screen ${t.shell}`}>
       <Toaster position="top-right" theme={dark ? "dark" : "light"} richColors closeButton />
+      <GlobalOverlays />
 
       {/* Desktop sidebar */}
       <aside className={`sticky top-0 hidden h-screen shrink-0 print:!hidden flex-col border-r p-3 transition-[width] duration-200 lg:flex ${sidebarSurface} ${collapsed ? "w-[72px]" : "w-60"}`}>

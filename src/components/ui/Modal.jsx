@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 /** Accessible centred dialog. Escape and backdrop click close it. */
@@ -10,15 +11,23 @@ export default function Modal({ title, description, onClose, children, footer, s
     const previous = document.activeElement;
     const first = panelRef.current?.querySelector("input, select, textarea, button:not([data-close])");
     first?.focus();
-    const onKey = (event) => { if (event.key === "Escape") onClose(); };
-    document.addEventListener("keydown", onKey);
+    // Capture phase + stopPropagation: Escape closes only this modal, not the
+    // panel or editor underneath that also listens for Escape.
+    const onKey = (event) => {
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+      onClose();
+    };
+    document.addEventListener("keydown", onKey, true);
     return () => {
-      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("keydown", onKey, true);
       previous?.focus?.();
     };
   }, [onClose]);
 
-  return (
+  // Portal: a modal opened from inside a form (e.g. the task editor) must not
+  // submit that form or inherit its layout.
+  return createPortal(
     <div className="fixed inset-0 z-[160] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" onMouseDown={onClose}>
       <div
         ref={panelRef}
@@ -38,6 +47,7 @@ export default function Modal({ title, description, onClose, children, footer, s
         <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
         {footer && <footer className="flex justify-end gap-2 border-t border-slate-100 px-6 py-3 dark:border-white/10">{footer}</footer>}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

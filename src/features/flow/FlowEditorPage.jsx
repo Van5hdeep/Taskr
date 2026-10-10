@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router";
 import { AlertTriangle, ArrowLeft, Loader2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import SaveStatus from "../../components/ui/SaveStatus";
+import { LinkedItemsButton } from "../links/LinkedItems";
 import { formatSupabaseError } from "../../lib/supabase";
 import { readCrashBuffer, useAutosave } from "../../lib/useAutosave";
 import { useDocumentHistory } from "../workspace/useDocumentHistory";
@@ -57,6 +58,7 @@ function LoadedFlow({ row }) {
       <header className="flex flex-none items-center gap-3 border-b border-slate-200 bg-white px-4 py-2.5">
         <Link to="/flow" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800" aria-label="All diagrams" title="All diagrams"><ArrowLeft className="h-4 w-4" /></Link>
         <input value={title} onChange={(event) => setTitle(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} aria-label="Diagram title" placeholder="Untitled flow" className="min-w-0 flex-1 rounded-md bg-transparent px-1 text-lg font-bold text-slate-900 outline-none hover:bg-slate-50 focus:bg-slate-50 focus:ring-2 focus:ring-blue-200" />
+        <LinkedItemsButton type="flow" id={row.id} />
         <SaveStatus status={autosave.status} />
       </header>
       {autosave.status === "conflict" && (

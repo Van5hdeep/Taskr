@@ -3,6 +3,7 @@ import { Archive, ArchiveRestore, Bell, Calendar, Check, GripVertical, Plus, Rep
 import { STICKER_COLORS } from "../constants";
 import { QUADRANTS, RECURRENCE_OPTIONS, flagsForQuadrant, newSubTaskId, quadrantOf } from "../logic";
 import { fromLocalInput, toLocalInput } from "../format";
+import { LinkedItemsSection } from "../../links/LinkedItems";
 
 const REMINDER_PRESETS = [
   { id: "", label: "No reminder" },
@@ -202,6 +203,8 @@ export default function TaskEditor({ task, onSave, onClose, onArchive, onRestore
               <input value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addTag(); } }} onBlur={addTag} placeholder="Add tag" className="min-w-[100px] flex-1 bg-transparent px-1 py-1 text-sm outline-none dark:text-slate-100" />
             </div>
           </div>
+
+          <LinkedItemsSection type="task" id={task.id} labelClass={label} />
 
           <div>
             <span className={label}>Colour</span>

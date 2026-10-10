@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router";
 import { addMonths, startOfYear, subDays } from "date-fns";
 import { ArrowLeftRight, Download, Plus, Printer, Receipt, Search, Trash2, Upload } from "lucide-react";
 import Papa from "papaparse";
@@ -30,8 +31,10 @@ export default function TransactionsTab() {
   const { transactions, accounts, categories, remove, update } = useFinance();
   const money = useMoneyFormat();
   const confirm = useConfirm();
-  const [period, setPeriod] = useState("month");
-  const [query, setQuery] = useState("");
+  // ?q= (from search) opens with that text across all time.
+  const [params] = useSearchParams();
+  const [period, setPeriod] = useState(() => (params.get("q") ? "all" : "month"));
+  const [query, setQuery] = useState(() => params.get("q") ?? "");
   const [accountId, setAccountId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [kind, setKind] = useState("");
