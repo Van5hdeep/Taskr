@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { formatSupabaseError } from "../../lib/supabase";
+import { useAuth } from "../../lib/auth/AuthProvider";
 import * as api from "./api";
 import { accountBalances, advanceDue, toDay } from "./calc";
 import { DEFAULT_CATEGORIES } from "./defaults";
@@ -10,10 +11,20 @@ const KEYS = Object.keys(api.TABLES);
 const EMPTY = Object.fromEntries(KEYS.map((key) => [key, []]));
 
 let seeding = null;
+const SEEDED_KEY = "taskr_finance_seeded";
 
-/** First visit: one Cash account and the default categories. Shared across StrictMode double-mounts. */
-function ensureSeed(data) {
-  if (data.accounts.length && data.categories.length) return Promise.resolve(data);
+/**
+ * First visit only: one Cash account and the default categories. Nothing is
+ * fixed — once seeded, deleting them never brings them back. Shared across
+ * StrictMode double-mounts.
+ */
+function ensureSeed(data, userId) {
+  const key = `${SEEDED_KEY}:${userId}`;
+  let seeded = false;
+  try { seeded = localStorage.getItem(key) === "1"; } catch { /* storage unavailable */ }
+  const markSeeded = () => { try { localStorage.setItem(key, "1"); } catch { /* storage unavailable */ } };
+  const hasAnything = Object.values(data).some((rows) => rows.length);
+  if (seeded || hasAnything) { markSeeded(); return Promise.resolve(data); }
   if (!seeding) {
     seeding = (async () => {
       const next = { ...data };
@@ -21,13 +32,18 @@ function ensureSeed(data) {
       if (!data.categories.length) {
         next.categories = await api.insertRows("categories", DEFAULT_CATEGORIES.map(({ name, kind, color }, index) => ({ name, kind, color, position: index })));
       }
+      markSeeded();
       return next;
     })().finally(() => { seeding = null; });
   }
   return seeding;
 }
 
+// Deleting these cascades in the database (transactions, budgets, snapshots), so reload after.
+const CASCADING = ["accounts", "categories", "goals", "holdings", "recurring"];
+
 export function FinanceProvider({ children }) {
+  const { userId } = useAuth();
   const [data, setData] = useState(EMPTY);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -37,13 +53,13 @@ export function FinanceProvider({ children }) {
     try {
       const lists = await Promise.all(KEYS.map((key) => api.listAll(key)));
       const loaded = Object.fromEntries(KEYS.map((key, index) => [key, lists[index]]));
-      setData(await ensureSeed(loaded));
+      setData(await ensureSeed(loaded, userId));
     } catch (err) {
       setError(formatSupabaseError(err));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -84,7 +100,8 @@ export function FinanceProvider({ children }) {
       await api.deleteRows(key, list);
       setData((current) => ({ ...current, [key]: current[key].filter((row) => !list.includes(row.id)) }));
     } catch (err) { return fail(err, "Couldn't delete."); }
-  }, []);
+    if (CASCADING.includes(key)) await load();
+  }, [load]);
 
   /** Records the payment for a bill/subscription and moves its due date forward. */
   const markRecurringPaid = useCallback(async (item, { amount = item.amount, occurredOn = toDay(new Date()), accountId = item.account_id } = {}) => {

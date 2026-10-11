@@ -47,19 +47,19 @@ function ConfirmDialog({ config, onClose }) {
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-[999] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" role="presentation" onClick={() => onClose(false)}>
+    <div className="fixed inset-0 z-[999] flex items-center justify-center bg-stone-900/40 p-4 backdrop-blur-sm" role="presentation" onClick={() => onClose(false)}>
       <div
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="confirm-title"
         onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 text-slate-800 shadow-2xl dark:border-blue-500/30 dark:bg-[#161f42] dark:text-slate-200"
+        className="w-full max-w-sm rounded-2xl border border-stone-200 bg-white p-6 text-stone-800 shadow-2xl dark:border-white/10 dark:bg-ink-850 dark:text-stone-200"
       >
         <h3 id="confirm-title" className="mb-2 text-lg font-bold">{title}</h3>
-        {message && <p className="mb-6 text-sm leading-relaxed text-slate-600 dark:text-slate-300">{message}</p>}
+        {message && <p className="mb-6 text-sm leading-relaxed text-stone-600 dark:text-stone-300">{message}</p>}
         <div className="flex justify-end gap-3">
           {!alertOnly && (
-            <button type="button" onClick={() => onClose(false)} className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-500/10 dark:text-slate-300">
+            <button type="button" onClick={() => onClose(false)} className="rounded-lg px-4 py-2 text-sm font-semibold text-stone-600 transition-colors hover:bg-stone-500/10 dark:text-stone-300">
               {cancelText}
             </button>
           )}
@@ -67,7 +67,7 @@ function ConfirmDialog({ config, onClose }) {
             ref={confirmRef}
             type="button"
             onClick={() => onClose(true)}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-md transition-colors ${destructive ? "bg-red-500 shadow-red-500/20 hover:bg-red-600" : "bg-blue-500 shadow-blue-500/20 hover:bg-blue-600"}`}
+            className={`rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-md transition-colors ${destructive ? "bg-red-500 shadow-red-500/20 hover:bg-red-600" : "bg-amber-500 shadow-amber-500/20 hover:bg-stone-900"}`}
           >
             {confirmText || (destructive ? "Delete" : "Confirm")}
           </button>

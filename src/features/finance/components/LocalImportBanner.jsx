@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { HardDriveDownload, Loader2, X } from "lucide-react";
+import { HardDriveDownload, Loader2, X } from "../../../lib/icons";
 import { toast } from "sonner";
 import { formatSupabaseError } from "../../../lib/supabase";
 import { useFinance } from "../FinanceStore";
@@ -95,15 +95,15 @@ export default function LocalImportBanner() {
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm dark:border-blue-500/30 dark:bg-blue-500/10">
-      <HardDriveDownload className="h-5 w-5 shrink-0 text-blue-600" />
-      <p className="min-w-0 flex-1 text-blue-900 dark:text-blue-100">
-        <strong>Finance data found in this browser</strong> from the earlier version of TASKR ({count} transactions). Import it into your account so it syncs everywhere?
+    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm dark:border-amber-500/30 dark:bg-amber-500/10">
+      <HardDriveDownload className="h-5 w-5 shrink-0 text-amber-700" />
+      <p className="min-w-0 flex-1 text-amber-900 dark:text-amber-100">
+        <strong>Finance data found in this browser</strong> from the earlier version of taskr ({count} transactions). Import it into your account so it syncs everywhere?
       </p>
-      <button type="button" onClick={runImport} disabled={busy} className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-60">
+      <button type="button" onClick={runImport} disabled={busy} className="inline-flex items-center gap-1.5 rounded-xl bg-stone-900 dark:bg-amber-400 dark:text-stone-900 px-3 py-2 text-xs font-bold text-white hover:bg-stone-800 dark:hover:bg-amber-300 disabled:opacity-60">
         {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Import
       </button>
-      <button type="button" onClick={dismiss} disabled={busy} className="rounded-lg p-1.5 text-blue-700 hover:bg-blue-100 dark:text-blue-200 dark:hover:bg-blue-500/20" aria-label="Don't import"><X className="h-4 w-4" /></button>
+      <button type="button" onClick={dismiss} disabled={busy} className="rounded-lg p-1.5 text-amber-800 hover:bg-amber-100 dark:text-amber-200 dark:hover:bg-amber-500/20" aria-label="Don't import"><X className="h-4 w-4" /></button>
     </div>
   );
 }

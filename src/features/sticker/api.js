@@ -177,6 +177,24 @@ export async function listOpenTasks() {
   return (data ?? []).map(taskFromRow);
 }
 
+/** Every sticker on the user's board(s): open ones and ones done since `doneSince`. */
+export async function listStickers(doneSince) {
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("*")
+    .is("archived_at", null)
+    .or(`completed_at.is.null,completed_at.gte.${doneSince.toISOString()}`)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map(taskFromRow);
+}
+
+/** Done stickers older than `before` leave the Done board for good. */
+export async function purgeDoneBefore(before) {
+  const { error } = await supabase.from("tasks").delete().lt("completed_at", before.toISOString());
+  if (error) throw error;
+}
+
 export async function deleteTask(id) {
   const { error } = await supabase.from("tasks").delete().eq("id", id);
   if (error) throw error;

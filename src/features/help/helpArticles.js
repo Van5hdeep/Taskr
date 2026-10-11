@@ -1,0 +1,111 @@
+/** Help & support articles. `keywords` widen search beyond the title and body. */
+export const HELP_ARTICLES = [
+  {
+    topic: "Getting started",
+    title: "What is taskr?",
+    body: "taskr keeps four everyday tools in one place: Sticker for to-dos, Finance for money, Workspace for notes and pages, and Flow for diagrams. Everything saves to your account automatically.",
+    keywords: "intro overview start",
+  },
+  {
+    topic: "Getting started",
+    title: "Guest account vs email account",
+    body: "A guest account works straight away but lives only in this browser. Add an email and password in Settings → Account to keep your work and sign in on other devices. Nothing is lost when you upgrade.",
+    keywords: "guest sign up upgrade save login",
+  },
+  {
+    topic: "Getting started",
+    title: "Quick add and search",
+    body: "Press Alt+N anywhere to add a sticker or an expense in one line. Press Ctrl+K (⌘K on Mac) to search everything and jump between tools. Press ? to see every keyboard shortcut.",
+    keywords: "shortcut keyboard command palette capture",
+  },
+  {
+    topic: "Sticker",
+    title: "How the sticker board works",
+    body: "Write a sticker, choose its colour, and press Stick it. Red means urgent, blue means a little urgent, green means it can wait. Drag stickers anywhere on the board, and double-click one to edit its text.",
+    keywords: "add task colour color urgency red blue green drag",
+  },
+  {
+    topic: "Sticker",
+    title: "Checking stickers off and the Done board",
+    body: "Press Done on a sticker to move it to the Done board (switch with the Board / Done toggle at the top). Done stickers stay there for 24 hours, then clear themselves. Use Put back if you finished one by mistake.",
+    keywords: "complete finish undo done 24 hours",
+  },
+  {
+    topic: "Sticker",
+    title: "Changing urgency or deleting a sticker",
+    body: "Hover a sticker to see the three colour dots and the bin. Click a dot to change how urgent it is, or the bin to delete it. Tidy up lines every sticker up with the most urgent first.",
+    keywords: "colour delete remove tidy arrange",
+  },
+  {
+    topic: "Finance",
+    title: "The first three things to do in Finance",
+    body: "1. Add your accounts (bank, cash, wallet, card) in Accounts. 2. Record money in and out as it happens. 3. Optionally set a budget for categories you want to watch. The Summary tab does the maths.",
+    keywords: "setup start money accounts",
+  },
+  {
+    topic: "Finance",
+    title: "Deleting accounts, goals, budgets and investments",
+    body: "Nothing in Finance is fixed. Every account, goal, budget, bill, category and investment has a bin icon. Deleting an account also deletes its transactions, so archive it instead if you want to keep the history.",
+    keywords: "remove delete archive account goal budget investment category",
+  },
+  {
+    topic: "Finance",
+    title: "What does 'safe to spend' mean?",
+    body: "It's what's left this month after bills that are still due and money you planned to put towards goals. Spend within it and your bills and goals stay covered.",
+    keywords: "safe spend summary budget",
+  },
+  {
+    topic: "Finance",
+    title: "Importing a bank statement",
+    body: "In Money in & out, choose Import CSV and pick a CSV file exported from your bank. Match its columns once; taskr skips rows it has already imported.",
+    keywords: "csv import upload bank statement",
+  },
+  {
+    topic: "Workspace",
+    title: "Writing, drawing and adding things to a page",
+    body: "Use the toolbar to add text, tables, shapes, sticky notes and images, or pick the pen and highlighter to write by hand. Click or drag on the page to place an item, then drag it to move.",
+    keywords: "pen ink draw text shape image note",
+  },
+  {
+    topic: "Workspace",
+    title: "Tables",
+    body: "Pick a table size from the toolbar. Text wraps inside a cell and the row grows to fit it. Right-click a cell to add or delete rows and columns, and press Tab in the last cell to add a row.",
+    keywords: "table row column cell wrap",
+  },
+  {
+    topic: "Workspace",
+    title: "Deleting or archiving a document",
+    body: "On the Workspace list, open a document's ••• menu and choose Delete. Archive hides a document without deleting it; find it again with Show archived.",
+    keywords: "delete remove archive document",
+  },
+  {
+    topic: "Flow",
+    title: "Building a diagram",
+    body: "Drag blocks from the left panel, then drag from a block's dot to another block to connect them. Double-click a block to rename it. Tidy up arranges everything neatly.",
+    keywords: "diagram connect node edge",
+  },
+  {
+    topic: "Account & data",
+    title: "Changing the theme",
+    body: "Go to Settings → Appearance and choose Light, Dark or Match system.",
+    keywords: "dark mode light theme colours appearance",
+  },
+  {
+    topic: "Account & data",
+    title: "Downloading a copy of your data",
+    body: "Settings → Privacy → Download my data saves everything you've stored in taskr as a JSON file.",
+    keywords: "export backup download json",
+  },
+  {
+    topic: "Account & data",
+    title: "Starting over",
+    body: "Settings → Reset deletes every sticker, finance record, document and diagram you've saved. Your sign-in stays. It can't be undone, so download your data first.",
+    keywords: "reset delete everything wipe clear",
+  },
+  {
+    topic: "Account & data",
+    title: "Forgot your password",
+    body: "On the sign-in page choose Forgot password and enter your email. Follow the link in the email to set a new one. When signed in, you can change it in Settings → Account.",
+    keywords: "password reset login email",
+  },
+];

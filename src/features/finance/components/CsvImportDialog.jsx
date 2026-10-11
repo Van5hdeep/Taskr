@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import Papa from "papaparse";
-import { FileSpreadsheet, Loader2 } from "lucide-react";
+import { FileSpreadsheet, Loader2 } from "../../../lib/icons";
 import { toast } from "sonner";
 import Modal from "../../../components/ui/Modal";
 import { useMoneyFormat } from "../../../lib/profile";
@@ -156,17 +156,17 @@ export default function CsvImportDialog({ onClose }) {
       )}
     >
       {!raw ? (
-        <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 px-6 py-14 text-center hover:border-blue-400 dark:border-white/10">
-          <FileSpreadsheet className="h-8 w-8 text-blue-500" />
-          <span className="text-sm font-bold text-slate-800 dark:text-slate-100">Choose a CSV file</span>
-          <span className="text-xs text-slate-500">Exported from net banking or a UPI app</span>
+        <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-stone-300 px-6 py-14 text-center hover:border-amber-400 dark:border-white/10">
+          <FileSpreadsheet className="h-8 w-8 text-amber-500" />
+          <span className="text-sm font-bold text-stone-800 dark:text-stone-100">Choose a CSV file</span>
+          <span className="text-xs text-stone-500">Exported from net banking or a UPI app</span>
           <input type="file" accept=".csv,text/csv" className="sr-only" onChange={(e) => onFile(e.target.files?.[0])} />
         </label>
       ) : (
         <div className="space-y-5">
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
-            <span><strong className="text-slate-800 dark:text-slate-200">{fileName}</strong> · {raw.length} lines</span>
-            <label className="inline-flex items-center gap-2"><input type="checkbox" checked={hasHeader} onChange={(e) => setHasHeader(e.target.checked)} className="accent-blue-600" /> First line is a header</label>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-stone-500 dark:text-stone-400">
+            <span><strong className="text-stone-800 dark:text-stone-200">{fileName}</strong> · {raw.length} lines</span>
+            <label className="inline-flex items-center gap-2"><input type="checkbox" checked={hasHeader} onChange={(e) => setHasHeader(e.target.checked)} className="accent-amber-600" /> First line is a header</label>
           </div>
           <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Into account">
@@ -206,32 +206,32 @@ export default function CsvImportDialog({ onClose }) {
 
           {ready && (
             <div>
-              <p className="mb-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+              <p className="mb-2 text-xs font-semibold text-stone-500 dark:text-stone-400">
                 {validRows.length} readable rows{parsedRows.length - validRows.length ? ` · ${parsedRows.length - validRows.length} will be skipped (missing date, description or amount)` : ""}. Categories are suggested from your history — change any before importing.
               </p>
-              <div className="max-h-[320px] overflow-auto rounded-xl border border-slate-200 dark:border-white/10">
+              <div className="max-h-[320px] overflow-auto rounded-xl border border-stone-200 dark:border-white/10">
                 <table className="w-full text-left text-xs">
-                  <thead className="sticky top-0 bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500 dark:bg-[#141c3d]">
+                  <thead className="sticky top-0 bg-stone-50 text-[10px] uppercase tracking-wider text-stone-500 dark:bg-ink-850">
                     <tr><th className="px-3 py-2">Date</th><th className="px-3 py-2">Description</th><th className="px-3 py-2">Category</th><th className="px-3 py-2 text-right">Amount</th></tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                  <tbody className="divide-y divide-stone-100 dark:divide-white/5">
                     {validRows.slice(0, 300).map((row) => (
                       <tr key={row.index}>
-                        <td className="whitespace-nowrap px-3 py-1.5 text-slate-500">{row.date}</td>
-                        <td className="max-w-[260px] truncate px-3 py-1.5 text-slate-800 dark:text-slate-200" title={row.title}>{row.title}</td>
+                        <td className="whitespace-nowrap px-3 py-1.5 text-stone-500">{row.date}</td>
+                        <td className="max-w-[260px] truncate px-3 py-1.5 text-stone-800 dark:text-stone-200" title={row.title}>{row.title}</td>
                         <td className="px-3 py-1.5">
-                          <select value={(categoryOverrides[row.index] ?? row.suggested) || ""} onChange={(e) => setCategoryOverrides({ ...categoryOverrides, [row.index]: e.target.value })} className="w-full rounded-md border border-slate-200 bg-white px-1.5 py-1 text-xs dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
+                          <select value={(categoryOverrides[row.index] ?? row.suggested) || ""} onChange={(e) => setCategoryOverrides({ ...categoryOverrides, [row.index]: e.target.value })} className="w-full rounded-md border border-stone-200 bg-white px-1.5 py-1 text-xs dark:border-white/10 dark:bg-white/5 dark:text-stone-200">
                             <option value="">Uncategorised</option>
                             {categories.filter((category) => category.kind === row.kind).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
                           </select>
                         </td>
-                        <td className={`whitespace-nowrap px-3 py-1.5 text-right font-bold ${row.kind === "income" ? "text-emerald-600" : "text-slate-800 dark:text-slate-200"}`}>{row.kind === "income" ? "+" : "−"}{money(row.amount)}</td>
+                        <td className={`whitespace-nowrap px-3 py-1.5 text-right font-bold ${row.kind === "income" ? "text-emerald-600" : "text-stone-800 dark:text-stone-200"}`}>{row.kind === "income" ? "+" : "−"}{money(row.amount)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              {validRows.length > 300 && <p className="mt-1 text-[11px] text-slate-400">Showing the first 300 rows; all {validRows.length} will be imported.</p>}
+              {validRows.length > 300 && <p className="mt-1 text-[11px] text-stone-400">Showing the first 300 rows; all {validRows.length} will be imported.</p>}
             </div>
           )}
         </div>

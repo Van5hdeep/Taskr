@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { ImageOff, Loader2 } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ImageOff, Loader2 } from "../../../lib/icons";
 import { signedImageUrl } from "../api";
 
 // ─── Shapes ────────────────────────────────────────────────────────────────
@@ -64,7 +64,7 @@ export function StickerContent({ block, onCommit, readOnly }) {
         onChange={(event) => setText(event.target.value)}
         onBlur={() => { if (text !== (block.text ?? "")) onCommit({ text }); }}
         placeholder="Note…"
-        className="w-full flex-1 resize-none bg-transparent text-sm font-medium text-slate-800 outline-none placeholder:text-slate-500/60"
+        className="w-full flex-1 resize-none bg-transparent text-sm font-medium text-stone-800 outline-none placeholder:text-stone-500/60"
       />
     </div>
   );
@@ -97,9 +97,9 @@ export function ImageContent({ block, previewUrl }) {
   return (
     <div className="relative h-full w-full overflow-hidden" style={{ backgroundColor: block.fill || "transparent", border: `${block.strokeWidth || 1}px solid ${block.stroke || "transparent"}` }}>
       {url && <img src={url} alt={block.alt || ""} crossOrigin="anonymous" draggable={false} className="pointer-events-none h-full w-full select-none object-contain" />}
-      {error && <div className="flex h-full w-full items-center justify-center bg-slate-100 text-slate-400"><ImageOff className="h-6 w-6" /></div>}
+      {error && <div className="flex h-full w-full items-center justify-center bg-stone-100 text-stone-400"><ImageOff className="h-6 w-6" /></div>}
       {uploading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-white/50 text-xs font-semibold text-slate-600" data-export-ignore>
+        <div className="absolute inset-0 flex items-center justify-center bg-white/50 text-xs font-semibold text-stone-600" data-export-ignore>
           <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading…
         </div>
       )}
@@ -134,13 +134,44 @@ export function resizeTable(block, change) {
   return { data, rows, cols, height };
 }
 
+/** Grows a cell's textarea to fit its wrapped text. */
+function fitToContent(element) {
+  element.style.height = "auto";
+  element.style.height = `${element.scrollHeight}px`;
+}
+
+/**
+ * Cells wrap their text onto new lines; when a cell outgrows its row, the row
+ * (and the whole table block) gets taller instead of hiding the text.
+ */
 export function TableContent({ block, onCommit, onCellMenu, readOnly }) {
   const [draft, setDraft] = useState(block.data);
   const timer = useRef(null);
+  const tableRef = useRef(null);
   useEffect(() => { setDraft(block.data); }, [block.data]);
   useEffect(() => () => clearTimeout(timer.current), []);
 
-  const commit = (data) => { clearTimeout(timer.current); onCommit({ data }); };
+  useLayoutEffect(() => {
+    tableRef.current?.querySelectorAll("textarea").forEach(fitToContent);
+  }, [draft, block.width, block.height]);
+
+  // Height the table needs to show every line, or null when it already fits.
+  const grownHeight = () => {
+    const needed = tableRef.current?.offsetHeight ?? 0;
+    return needed > block.height + 1 ? Math.ceil(needed) : null;
+  };
+
+  // Narrowing the table rewraps text; keep the block tall enough for it.
+  useEffect(() => {
+    const height = grownHeight();
+    if (height && !readOnly) onCommit({ height });
+  }, [block.width]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const commit = (data) => {
+    clearTimeout(timer.current);
+    const height = grownHeight();
+    onCommit(height ? { data, height } : { data });
+  };
   const setCell = (r, c, value) => {
     const next = draft.map((row, ri) => (ri === r ? row.map((cell, ci) => (ci === c ? value : cell)) : row));
     setDraft(next);
@@ -150,19 +181,20 @@ export function TableContent({ block, onCommit, onCellMenu, readOnly }) {
 
   const border = `${block.strokeWidth || 1}px solid ${block.stroke || "#000000"}`;
   return (
-    <table className="table-crisp h-full w-full" style={{ tableLayout: "fixed", backgroundColor: block.fill || "transparent", border }}>
+    <table ref={tableRef} className="table-crisp h-full w-full" style={{ tableLayout: "fixed", backgroundColor: block.fill || "transparent", border }}>
       <tbody>
         {draft.map((row, r) => (
           <tr key={r}>
             {row.map((cell, c) => {
               const header = block.headerRow && r === 0;
               return (
-                <td key={c} className="relative p-0" style={{ border, backgroundColor: header ? "rgba(148,163,184,0.18)" : undefined }}>
-                  <input
+                <td key={c} className="relative p-0 align-top" style={{ border, backgroundColor: header ? "rgba(148,163,184,0.18)" : undefined }}>
+                  <textarea
+                    rows={1}
                     value={cell}
                     readOnly={readOnly}
                     aria-label={`Row ${r + 1}, column ${c + 1}`}
-                    onChange={(event) => setCell(r, c, event.target.value)}
+                    onChange={(event) => { fitToContent(event.target); setCell(r, c, event.target.value); }}
                     onBlur={() => { if (draft !== block.data) commit(draft); }}
                     onContextMenu={(event) => { event.preventDefault(); onCellMenu?.(event, r, c); }}
                     onKeyDown={(event) => {
@@ -173,7 +205,7 @@ export function TableContent({ block, onCommit, onCellMenu, readOnly }) {
                         onCommit(resizeTable({ ...block, data: draft }, { type: "insertRow", index: draft.length }));
                       }
                     }}
-                    className={`h-full w-full bg-transparent px-2 py-1 text-sm text-slate-900 outline-none focus:bg-blue-50/60 ${header ? "font-bold" : ""}`}
+                    className={`block min-h-full w-full resize-none overflow-hidden whitespace-pre-wrap break-words bg-transparent px-2 py-1 text-sm leading-snug text-stone-900 outline-none focus:bg-amber-50/60 ${header ? "font-bold" : ""}`}
                   />
                 </td>
               );

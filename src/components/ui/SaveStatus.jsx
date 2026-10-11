@@ -1,11 +1,11 @@
-import { AlertTriangle, Check, CloudOff, Loader2 } from "lucide-react";
+import { AlertTriangle, Check, CloudOff, Loader2 } from "../../lib/icons";
 
 /** Autosave state label shared by the Workspace and Flow editors. */
 export default function SaveStatus({ status }) {
   const map = {
     saved: { icon: Check, text: "Saved", tone: "text-emerald-600" },
-    pending: { icon: Loader2, text: "Unsaved changes", tone: "text-slate-500", spin: false },
-    saving: { icon: Loader2, text: "Saving…", tone: "text-slate-500", spin: true },
+    pending: { icon: Loader2, text: "Unsaved changes", tone: "text-stone-500", spin: false },
+    saving: { icon: Loader2, text: "Saving…", tone: "text-stone-500", spin: true },
     offline: { icon: CloudOff, text: "Offline — will retry", tone: "text-amber-600" },
     error: { icon: AlertTriangle, text: "Couldn't save — retrying", tone: "text-red-600" },
     conflict: { icon: AlertTriangle, text: "Changed elsewhere", tone: "text-red-600" },

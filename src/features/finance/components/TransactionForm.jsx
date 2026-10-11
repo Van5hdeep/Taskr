@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2 } from "../../../lib/icons";
 import Modal from "../../../components/ui/Modal";
 import { useFinance } from "../FinanceStore";
 import { toDay } from "../calc";
@@ -51,7 +51,7 @@ export default function TransactionForm({ transaction = null, initial = {}, onCl
     event.preventDefault();
     const amount = Number(form.amount);
     if (!(amount > 0)) { setError("Enter an amount above zero."); return; }
-    if (!form.account_id) { setError("Choose an account."); return; }
+    if (!form.account_id) { setError(activeAccounts.length ? "Choose an account." : "Add an account first, in the Accounts tab."); return; }
     if (form.kind === "transfer" && (!form.transfer_account_id || form.transfer_account_id === form.account_id)) { setError("Choose two different accounts for a transfer."); return; }
     setSaving(true);
     setError(null);
@@ -88,9 +88,9 @@ export default function TransactionForm({ transaction = null, initial = {}, onCl
       )}
     >
       <form id="transaction-form" onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
-        <div className="sm:col-span-2 inline-flex rounded-xl bg-slate-100 p-1 dark:bg-white/5" role="radiogroup" aria-label="Type">
+        <div className="sm:col-span-2 inline-flex rounded-xl bg-stone-100 p-1 dark:bg-white/5" role="radiogroup" aria-label="Type">
           {KINDS.map((kind) => (
-            <button key={kind.id} type="button" role="radio" aria-checked={form.kind === kind.id} onClick={() => set({ kind: kind.id, category_id: "" })} className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-bold ${form.kind === kind.id ? "bg-white text-blue-700 shadow-sm dark:bg-[#1c2650] dark:text-blue-300" : "text-slate-500"}`}>
+            <button key={kind.id} type="button" role="radio" aria-checked={form.kind === kind.id} onClick={() => set({ kind: kind.id, category_id: "" })} className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-bold ${form.kind === kind.id ? "bg-white text-amber-800 shadow-sm dark:bg-ink-800 dark:text-amber-300" : "text-stone-500"}`}>
               {kind.label}
             </button>
           ))}

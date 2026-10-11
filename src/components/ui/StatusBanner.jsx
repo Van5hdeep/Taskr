@@ -1,11 +1,11 @@
-import { AlertCircle, CheckCircle2, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, X } from "../../lib/icons";
 
 export default function StatusBanner({ message, variant = "error", onDismiss, className = "" }) {
   if (!message) return null;
   const palette = variant === "success"
     ? "border-emerald-100 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/40 dark:text-emerald-300"
     : variant === "info"
-      ? "border-blue-100 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-950/40 dark:text-blue-300"
+      ? "border-amber-100 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-950/40 dark:text-amber-300"
       : "border-red-100 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-950/40 dark:text-red-300";
   const Icon = variant === "success" ? CheckCircle2 : AlertCircle;
 

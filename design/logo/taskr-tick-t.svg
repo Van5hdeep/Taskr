@@ -1,0 +1,5 @@
+<!-- TASKR logo option: Tick t -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="currentColor">
+  <path class="tx-draw" d="M25 6 V39 L33 47 L57 20" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" pathLength="1"/>
+  <path class="tx-draw2" d="M10 21 H39" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" pathLength="1"/>
+</svg>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CalendarClock, Check, Pause, Pencil, Play, Plus, SkipForward, Trash2 } from "lucide-react";
+import { CalendarClock, Check, Pause, Pencil, Play, Plus, SkipForward, Trash2 } from "../../../lib/icons";
 import { toast } from "sonner";
 import Modal from "../../../components/ui/Modal";
 import { useConfirm } from "../../../components/ui/ConfirmDialog";
@@ -18,8 +18,8 @@ function dueLabel(day) {
   if (diff < 0) return { text: `${-diff} day${diff === -1 ? "" : "s"} overdue`, tone: "text-red-600 dark:text-red-400 font-bold" };
   if (diff === 0) return { text: "Due today", tone: "text-amber-600 dark:text-amber-400 font-bold" };
   if (diff === 1) return { text: "Due tomorrow", tone: "text-amber-600 dark:text-amber-400" };
-  if (diff <= 7) return { text: `Due in ${diff} days`, tone: "text-slate-700 dark:text-slate-300" };
-  return { text: parseDay(day).toLocaleDateString(undefined, { day: "numeric", month: "short" }), tone: "text-slate-500 dark:text-slate-400" };
+  if (diff <= 7) return { text: `Due in ${diff} days`, tone: "text-stone-700 dark:text-stone-300" };
+  return { text: parseDay(day).toLocaleDateString(undefined, { day: "numeric", month: "short" }), tone: "text-stone-500 dark:text-stone-400" };
 }
 
 export function RecurringForm({ item, initial = {}, onClose }) {
@@ -94,8 +94,8 @@ export function RecurringForm({ item, initial = {}, onClose }) {
           </select>
         </Field>
         {form.kind === "expense" && (
-          <label className="flex items-center gap-2 self-end pb-2 text-sm text-slate-700 dark:text-slate-300">
-            <input type="checkbox" checked={form.is_subscription} onChange={(e) => set({ is_subscription: e.target.checked })} className="accent-blue-600" /> This is a subscription
+          <label className="flex items-center gap-2 self-end pb-2 text-sm text-stone-700 dark:text-stone-300">
+            <input type="checkbox" checked={form.is_subscription} onChange={(e) => set({ is_subscription: e.target.checked })} className="accent-amber-600" /> This is a subscription
           </label>
         )}
       </form>
@@ -137,25 +137,25 @@ export default function BillsTab() {
     const due = dueLabel(item.next_due_on);
     return (
       <li key={item.id} className={`flex flex-wrap items-center gap-3 px-4 py-3 ${item.is_active ? "" : "opacity-60"}`}>
-        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${item.kind === "income" ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15" : "bg-blue-50 text-blue-600 dark:bg-blue-500/15"}`}><CalendarClock className="h-4 w-4" /></span>
+        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${item.kind === "income" ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15" : "bg-amber-50 text-amber-700 dark:bg-amber-500/15"}`}><CalendarClock className="h-4 w-4" /></span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{item.title} {item.is_subscription && <span className="ml-1 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500 dark:bg-white/10">subscription</span>}</p>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <p className="truncate text-sm font-bold text-stone-900 dark:text-white">{item.title} {item.is_subscription && <span className="ml-1 rounded-full bg-stone-100 px-1.5 py-0.5 text-[10px] font-bold text-stone-500 dark:bg-white/10">subscription</span>}</p>
+          <p className="text-xs text-stone-500 dark:text-stone-400">
             {CADENCES.find((cadence) => cadence.id === item.cadence)?.label}{item.interval_count > 1 ? ` ×${item.interval_count}` : ""} · {accounts.find((account) => account.id === item.account_id)?.name ?? "No account"}
             {item.is_active && <> · <span className={due.tone}>{due.text}</span></>}
           </p>
         </div>
-        <span className={`text-sm font-extrabold tabular-nums ${item.kind === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-slate-900 dark:text-white"}`}>{item.kind === "income" ? "+" : ""}{money(item.amount)}</span>
+        <span className={`text-sm font-extrabold tabular-nums ${item.kind === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-stone-900 dark:text-white"}`}>{item.kind === "income" ? "+" : ""}{money(item.amount)}</span>
         <div className="flex gap-1">
           {item.is_active && (
             <>
               <button type="button" onClick={() => pay(item, item.account_id)} className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-emerald-700"><Check className="h-3.5 w-3.5" /> {item.kind === "income" ? "Received" : "Paid"}</button>
-              <button type="button" onClick={() => skipRecurring(item)} title="Skip this one" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5"><SkipForward className="h-4 w-4" /></button>
+              <button type="button" onClick={() => skipRecurring(item)} title="Skip this one" className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 dark:hover:bg-white/5"><SkipForward className="h-4 w-4" /></button>
             </>
           )}
-          <button type="button" onClick={() => update("recurring", item.id, { is_active: !item.is_active })} title={item.is_active ? "Pause" : "Resume"} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5">{item.is_active ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}</button>
-          <button type="button" onClick={() => setEditing(item)} title="Edit" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5"><Pencil className="h-4 w-4" /></button>
-          <button type="button" onClick={() => removeItem(item)} title="Delete" className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30"><Trash2 className="h-4 w-4" /></button>
+          <button type="button" onClick={() => update("recurring", item.id, { is_active: !item.is_active })} title={item.is_active ? "Pause" : "Resume"} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 dark:hover:bg-white/5">{item.is_active ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}</button>
+          <button type="button" onClick={() => setEditing(item)} title="Edit" className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 dark:hover:bg-white/5"><Pencil className="h-4 w-4" /></button>
+          <button type="button" onClick={() => removeItem(item)} title="Delete" className="rounded-lg p-1.5 text-stone-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30"><Trash2 className="h-4 w-4" /></button>
         </div>
       </li>
     );
@@ -164,9 +164,9 @@ export default function BillsTab() {
   return (
     <div className="space-y-5">
       <div className="grid gap-3 sm:grid-cols-3">
-        <Card><p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Fixed costs / month</p><p className="mt-1 text-xl font-extrabold tabular-nums text-slate-900 dark:text-white">{money(monthlyOut)}</p></Card>
-        <Card><p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Subscriptions / month</p><p className="mt-1 text-xl font-extrabold tabular-nums text-slate-900 dark:text-white">{money(subscriptionMonthly)}</p><p className="text-xs text-slate-500">{subscriptions.length} active · {money(subscriptionMonthly * 12)} a year</p></Card>
-        <Card><p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Recurring income / month</p><p className="mt-1 text-xl font-extrabold tabular-nums text-emerald-600 dark:text-emerald-400">{money(monthlyIn)}</p></Card>
+        <Card><p className="text-[11px] font-bold uppercase tracking-wide text-stone-500">Fixed costs / month</p><p className="mt-1 text-xl font-extrabold tabular-nums text-stone-900 dark:text-white">{money(monthlyOut)}</p></Card>
+        <Card><p className="text-[11px] font-bold uppercase tracking-wide text-stone-500">Subscriptions / month</p><p className="mt-1 text-xl font-extrabold tabular-nums text-stone-900 dark:text-white">{money(subscriptionMonthly)}</p><p className="text-xs text-stone-500">{subscriptions.length} active · {money(subscriptionMonthly * 12)} a year</p></Card>
+        <Card><p className="text-[11px] font-bold uppercase tracking-wide text-stone-500">Recurring income / month</p><p className="mt-1 text-xl font-extrabold tabular-nums text-emerald-600 dark:text-emerald-400">{money(monthlyIn)}</p></Card>
       </div>
 
       <div className="flex justify-end">
@@ -176,16 +176,16 @@ export default function BillsTab() {
       {recurring.length ? (
         <>
           <Card title="Upcoming" className="p-0 [&>header]:px-5 [&>header]:pt-5">
-            <ul className="divide-y divide-slate-100 dark:divide-white/5">{active.map(row)}</ul>
-            {!active.length && <p className="px-5 pb-5 text-sm text-slate-500">Nothing active.</p>}
+            <ul className="divide-y divide-stone-100 dark:divide-white/5">{active.map(row)}</ul>
+            {!active.length && <p className="px-5 pb-5 text-sm text-stone-500">Nothing active.</p>}
           </Card>
           {paused.length > 0 && (
-            <Card title="Paused" className="p-0 [&>header]:px-5 [&>header]:pt-5"><ul className="divide-y divide-slate-100 dark:divide-white/5">{paused.map(row)}</ul></Card>
+            <Card title="Paused" className="p-0 [&>header]:px-5 [&>header]:pt-5"><ul className="divide-y divide-stone-100 dark:divide-white/5">{paused.map(row)}</ul></Card>
           )}
         </>
       ) : (
         <EmptyState icon={CalendarClock} title="No bills or subscriptions yet" action={<button type="button" onClick={() => setEditing("new")} className={buttonPrimary}><Plus className="h-4 w-4" /> Add your first</button>}>
-          Add rent, EMIs, utilities, subscriptions, SIPs and salary. TASKR reminds you before they're due and counts them in safe-to-spend.
+          Add rent, EMIs, utilities, subscriptions, SIPs and salary. taskr reminds you before they're due and counts them in safe-to-spend.
         </EmptyState>
       )}
 
@@ -194,7 +194,7 @@ export default function BillsTab() {
         <Modal title={`Which account for ${paying.title}?`} onClose={() => setPaying(null)} size="sm">
           <div className="grid gap-2">
             {accounts.filter((account) => !account.is_archived).map((account) => (
-              <button key={account.id} type="button" onClick={async () => { await update("recurring", paying.id, { account_id: account.id }); await pay({ ...paying, account_id: account.id }, account.id); }} className="rounded-xl border border-slate-200 px-4 py-3 text-left text-sm font-semibold hover:border-blue-400 dark:border-white/10 dark:text-slate-200">{account.name}</button>
+              <button key={account.id} type="button" onClick={async () => { await update("recurring", paying.id, { account_id: account.id }); await pay({ ...paying, account_id: account.id }, account.id); }} className="rounded-xl border border-stone-200 px-4 py-3 text-left text-sm font-semibold hover:border-amber-400 dark:border-white/10 dark:text-stone-200">{account.name}</button>
             ))}
           </div>
         </Modal>

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 import { addMonths, startOfYear, subDays } from "date-fns";
-import { ArrowLeftRight, Download, Plus, Printer, Receipt, Search, Trash2, Upload } from "lucide-react";
+import { ArrowLeftRight, Download, Plus, Printer, Receipt, Search, Trash2, Upload } from "../../../lib/icons";
 import Papa from "papaparse";
 import { useConfirm } from "../../../components/ui/ConfirmDialog";
 import { useMoneyFormat } from "../../../lib/profile";
@@ -99,7 +99,7 @@ export default function TransactionsTab() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2 print:hidden">
         <div className="relative min-w-[200px] flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search transactions" className={`${inputClass} pl-9`} aria-label="Search transactions" />
         </div>
         <select value={period} onChange={(e) => setPeriod(e.target.value)} className={`${inputClass} w-auto`} aria-label="Period">{PERIODS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
@@ -115,8 +115,8 @@ export default function TransactionsTab() {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          {filtered.length} transactions · <span className="font-semibold text-emerald-600 dark:text-emerald-400">{money(totals.income)} in</span> · <span className="font-semibold text-slate-700 dark:text-slate-200">{money(totals.expense)} out</span>
+        <p className="text-sm text-stone-500 dark:text-stone-400">
+          {filtered.length} transactions · <span className="font-semibold text-emerald-600 dark:text-emerald-400">{money(totals.income)} in</span> · <span className="font-semibold text-stone-700 dark:text-stone-200">{money(totals.expense)} out</span>
         </p>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => setImporting(true)} className={buttonSecondary}><Upload className="h-4 w-4" /> Import CSV</button>
@@ -127,22 +127,22 @@ export default function TransactionsTab() {
       </div>
 
       {selected.size > 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm dark:border-blue-500/30 dark:bg-blue-500/10 print:hidden">
-          <span className="font-semibold text-blue-800 dark:text-blue-200">{selected.size} selected</span>
-          <select onChange={(e) => { if (e.target.value !== "__") recategorize(e.target.value); }} value="__" className="rounded-lg border border-blue-200 bg-white px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5 dark:text-slate-200" aria-label="Recategorise selected">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm dark:border-amber-500/30 dark:bg-amber-500/10 print:hidden">
+          <span className="font-semibold text-amber-900 dark:text-amber-200">{selected.size} selected</span>
+          <select onChange={(e) => { if (e.target.value !== "__") recategorize(e.target.value); }} value="__" className="rounded-lg border border-amber-200 bg-white px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5 dark:text-stone-200" aria-label="Recategorise selected">
             <option value="__">Set category…</option><option value="">Uncategorised</option>{categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
           <button type="button" onClick={deleteSelected} className="inline-flex items-center gap-1 text-xs font-bold text-red-600"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
-          <button type="button" onClick={() => setSelected(new Set())} className="ml-auto text-xs font-semibold text-slate-500">Clear</button>
+          <button type="button" onClick={() => setSelected(new Set())} className="ml-auto text-xs font-semibold text-stone-500">Clear</button>
         </div>
       )}
 
       {filtered.length ? (
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-[#0f1733] print:border-slate-300">
+        <div className="overflow-x-auto rounded-2xl border border-stone-200 bg-white dark:border-white/10 dark:bg-ink-900 print:border-stone-300">
           <table className="w-full min-w-[640px] text-left text-sm">
-            <thead className="border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500 dark:border-white/10 dark:text-slate-400">
+            <thead className="border-b border-stone-200 text-[11px] uppercase tracking-wider text-stone-500 dark:border-white/10 dark:text-stone-400">
               <tr>
-                <th className="w-10 px-4 py-3 print:hidden"><input type="checkbox" checked={allSelected} onChange={() => setSelected(allSelected ? new Set() : new Set(filtered.map((tx) => tx.id)))} aria-label="Select all" className="accent-blue-600" /></th>
+                <th className="w-10 px-4 py-3 print:hidden"><input type="checkbox" checked={allSelected} onChange={() => setSelected(allSelected ? new Set() : new Set(filtered.map((tx) => tx.id)))} aria-label="Select all" className="accent-amber-600" /></th>
                 <th className="px-3 py-3 font-bold">Date</th>
                 <th className="px-3 py-3 font-bold">Description</th>
                 <th className="px-3 py-3 font-bold">Category</th>
@@ -150,25 +150,25 @@ export default function TransactionsTab() {
                 <th className="px-4 py-3 text-right font-bold">Amount</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+            <tbody className="divide-y divide-stone-100 dark:divide-white/5">
               {filtered.map((tx) => {
                 const cat = category(tx.category_id);
                 return (
-                  <tr key={tx.id} onClick={() => setEditing(tx)} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.03]">
-                    <td className="px-4 py-3 print:hidden" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selected.has(tx.id)} onChange={() => toggle(tx.id)} aria-label={`Select ${tx.title}`} className="accent-blue-600" /></td>
-                    <td className="whitespace-nowrap px-3 py-3 text-xs font-medium text-slate-500 dark:text-slate-400">{new Date(`${tx.occurred_on}T00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}</td>
+                  <tr key={tx.id} onClick={() => setEditing(tx)} className="cursor-pointer hover:bg-stone-50 dark:hover:bg-white/[0.03]">
+                    <td className="px-4 py-3 print:hidden" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selected.has(tx.id)} onChange={() => toggle(tx.id)} aria-label={`Select ${tx.title}`} className="accent-amber-600" /></td>
+                    <td className="whitespace-nowrap px-3 py-3 text-xs font-medium text-stone-500 dark:text-stone-400">{new Date(`${tx.occurred_on}T00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}</td>
                     <td className="px-3 py-3">
-                      <div className="font-semibold text-slate-900 dark:text-slate-100">{tx.title}</div>
-                      {tx.notes && <div className="line-clamp-1 text-xs text-slate-500 dark:text-slate-400">{tx.notes}</div>}
+                      <div className="font-semibold text-stone-900 dark:text-stone-100">{tx.title}</div>
+                      {tx.notes && <div className="line-clamp-1 text-xs text-stone-500 dark:text-stone-400">{tx.notes}</div>}
                     </td>
                     <td className="px-3 py-3">
                       {tx.kind === "transfer" ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 dark:text-blue-300"><ArrowLeftRight className="h-3 w-3" /> Transfer</span>
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 dark:text-amber-300"><ArrowLeftRight className="h-3 w-3" /> Transfer</span>
                       ) : cat ? (
-                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: cat.color ?? "#64748b" }} />{cat.name}</span>
-                      ) : <span className="text-xs text-slate-400">Uncategorised</span>}
+                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-700 dark:text-stone-300"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: cat.color ?? "#64748b" }} />{cat.name}</span>
+                      ) : <span className="text-xs text-stone-400">Uncategorised</span>}
                     </td>
-                    <td className="px-3 py-3 text-xs text-slate-600 dark:text-slate-300">{accountName(tx.account_id)}{tx.transfer_account_id && ` → ${accountName(tx.transfer_account_id)}`}</td>
+                    <td className="px-3 py-3 text-xs text-stone-600 dark:text-stone-300">{accountName(tx.account_id)}{tx.transfer_account_id && ` → ${accountName(tx.transfer_account_id)}`}</td>
                     <td className="px-4 py-3 text-right"><Amount value={tx.amount} kind={tx.kind} /></td>
                   </tr>
                 );

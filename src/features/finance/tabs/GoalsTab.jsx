@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Archive, Flag, PartyPopper, Pencil, PiggyBank, Plus } from "lucide-react";
+import { Archive, Flag, PartyPopper, Pencil, PiggyBank, Plus, Trash2 } from "../../../lib/icons";
 import { addMonths } from "date-fns";
 import Modal from "../../../components/ui/Modal";
 import { useConfirm } from "../../../components/ui/ConfirmDialog";
@@ -38,8 +38,8 @@ function GoalForm({ goal, onClose }) {
       <form id="goal-form" onSubmit={submit} className="space-y-4">
         <Field label="Goal"><input className={inputClass} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Emergency fund, laptop, Goa trip…" required autoFocus /></Field>
         <Field label="Target amount"><MoneyInput value={form.target_amount} onChange={(target_amount) => setForm({ ...form, target_amount })} required /></Field>
-        <Field label="Target date" hint="Optional. With a date, TASKR tells you how much to set aside each month."><input type="date" className={inputClass} value={form.target_date} min={toDay(new Date())} onChange={(e) => setForm({ ...form, target_date: e.target.value })} /></Field>
-        <div className="flex gap-2">{GOAL_COLORS.map((color) => <button key={color} type="button" onClick={() => setForm({ ...form, color })} aria-label={`Colour ${color}`} className={`h-7 w-7 rounded-full ${form.color === color ? "ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-[#0e1532]" : ""}`} style={{ backgroundColor: color }} />)}</div>
+        <Field label="Target date" hint="Optional. With a date, taskr tells you how much to set aside each month."><input type="date" className={inputClass} value={form.target_date} min={toDay(new Date())} onChange={(e) => setForm({ ...form, target_date: e.target.value })} /></Field>
+        <div className="flex gap-2">{GOAL_COLORS.map((color) => <button key={color} type="button" onClick={() => setForm({ ...form, color })} aria-label={`Colour ${color}`} className={`h-7 w-7 rounded-full ${form.color === color ? "ring-2 ring-amber-500 ring-offset-2 dark:ring-offset-ink-900" : ""}`} style={{ backgroundColor: color }} />)}</div>
       </form>
     </Modal>
   );
@@ -56,7 +56,7 @@ function projection(goal, saved, transactions) {
 }
 
 export default function GoalsTab() {
-  const { goals, transactions, accounts, update } = useFinance();
+  const { goals, transactions, accounts, update, remove } = useFinance();
   const money = useMoneyFormat();
   const confirm = useConfirm();
   const [editing, setEditing] = useState(null);
@@ -68,12 +68,17 @@ export default function GoalsTab() {
     await update("goals", goal.id, { archived_at: new Date().toISOString() });
   };
 
+  const deleteGoal = async (goal) => {
+    if (!(await confirm({ title: `Delete "${goal.name}"?`, message: "The goal is removed. Money you put towards it stays in your transactions.", confirmText: "Delete", destructive: true }))) return;
+    await remove("goals", goal.id);
+  };
+
   const savingsAccount = accounts.find((account) => !account.is_archived && /sav/i.test(account.name));
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="max-w-2xl text-sm text-slate-500 dark:text-slate-400">Money put towards a goal is a normal transaction tagged with it — usually a transfer into a savings account, so your balances stay right.</p>
+        <p className="max-w-2xl text-sm text-stone-500 dark:text-stone-400">Money put towards a goal is a normal transaction tagged with it — usually a transfer into a savings account, so your balances stay right.</p>
         <button type="button" onClick={() => setEditing("new")} className={buttonPrimary}><Plus className="h-4 w-4" /> New goal</button>
       </div>
 
@@ -92,18 +97,19 @@ export default function GoalsTab() {
                   <div className="flex items-center gap-2">
                     <span className="flex h-9 w-9 items-center justify-center rounded-xl text-white" style={{ backgroundColor: goal.color ?? "#2563eb" }}>{done ? <PartyPopper className="h-4 w-4" /> : <Flag className="h-4 w-4" />}</span>
                     <div>
-                      <p className="text-sm font-bold text-slate-900 dark:text-white">{goal.name}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{goal.target_date ? `by ${parseDay(goal.target_date).toLocaleDateString(undefined, { month: "short", year: "numeric" })}` : "No deadline"}</p>
+                      <p className="text-sm font-bold text-stone-900 dark:text-white">{goal.name}</p>
+                      <p className="text-xs text-stone-500 dark:text-stone-400">{goal.target_date ? `by ${parseDay(goal.target_date).toLocaleDateString(undefined, { month: "short", year: "numeric" })}` : "No deadline"}</p>
                     </div>
                   </div>
                   <div className="flex gap-1">
-                    <button type="button" onClick={() => setEditing(goal)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5" aria-label={`Edit ${goal.name}`}><Pencil className="h-3.5 w-3.5" /></button>
-                    <button type="button" onClick={() => archive(goal)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5" aria-label={`Archive ${goal.name}`}><Archive className="h-3.5 w-3.5" /></button>
+                    <button type="button" onClick={() => setEditing(goal)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 dark:hover:bg-white/5" aria-label={`Edit ${goal.name}`}><Pencil className="h-3.5 w-3.5" /></button>
+                    <button type="button" onClick={() => archive(goal)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 dark:hover:bg-white/5" aria-label={`Archive ${goal.name}`} title="Archive"><Archive className="h-3.5 w-3.5" /></button>
+                    <button type="button" onClick={() => deleteGoal(goal)} className="rounded-lg p-1.5 text-stone-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30" aria-label={`Delete ${goal.name}`} title="Delete"><Trash2 className="h-3.5 w-3.5" /></button>
                   </div>
                 </div>
-                <p className="mb-2 text-lg font-extrabold tabular-nums text-slate-900 dark:text-white">{money(saved)} <span className="text-sm font-semibold text-slate-400">of {money(goal.target_amount)}</span></p>
-                <ProgressBar ratio={ratio} tone={done ? "bg-emerald-500" : "bg-blue-600"} />
-                <div className="mt-3 space-y-1 text-xs text-slate-600 dark:text-slate-300">
+                <p className="mb-2 text-lg font-extrabold tabular-nums text-stone-900 dark:text-white">{money(saved)} <span className="text-sm font-semibold text-stone-400">of {money(goal.target_amount)}</span></p>
+                <ProgressBar ratio={ratio} tone={done ? "bg-emerald-500" : "bg-stone-900 dark:bg-amber-400 dark:text-stone-900"} />
+                <div className="mt-3 space-y-1 text-xs text-stone-600 dark:text-stone-300">
                   {done ? <p className="font-bold text-emerald-600 dark:text-emerald-400">Goal reached 🎉</p> : (
                     <>
                       {need != null && <p>Set aside <strong>{money(need)}</strong> a month to make it on time.</p>}
@@ -123,7 +129,7 @@ export default function GoalsTab() {
         </div>
       ) : (
         <EmptyState icon={PiggyBank} title="No savings goals yet" action={<button type="button" onClick={() => setEditing("new")} className={buttonPrimary}><Plus className="h-4 w-4" /> Create a goal</button>}>
-          An emergency fund, a trip, a new laptop — set a target and a date, and TASKR works out the monthly amount.
+          An emergency fund, a trip, a new laptop — set a target and a date, and taskr works out the monthly amount.
         </EmptyState>
       )}
 

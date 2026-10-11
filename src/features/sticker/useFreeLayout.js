@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const MIN_W = 220;
-const MIN_H = 150;
-const DEFAULT_W = 260;
-const DEFAULT_H = 210;
+const MIN_W = 180;
+const MIN_H = 130;
+export const DEFAULT_W = 220;
+export const DEFAULT_H = 168;
 const GAP = 20;
 const PAD = 12;
 
@@ -123,6 +123,17 @@ export function useFreeLayout(tasks, canvasWidth, onCommit) {
     startDrag: (id, event) => begin("drag", id, event),
     startResize: (id, corner, event) => begin("resize", id, event, corner),
     bringToFront,
+    /** Lays the given ids out in a fresh grid (in order) and saves the positions. */
+    arrange: (ids) => {
+      const width = Math.max(canvasWidth || 900, DEFAULT_W + PAD * 2);
+      const cols = Math.max(1, Math.floor((width - PAD * 2 + GAP) / (DEFAULT_W + GAP)));
+      const placed = {};
+      ids.forEach((id, index) => {
+        placed[id] = { x: PAD + (index % cols) * (DEFAULT_W + GAP), y: PAD + Math.floor(index / cols) * (DEFAULT_H + GAP), w: DEFAULT_W, h: DEFAULT_H, z: 1 };
+      });
+      setLayout((previous) => ({ ...previous, ...placed }));
+      for (const [id, item] of Object.entries(placed)) commitRef.current(id, { pos: { x: item.x, y: item.y, w: item.w, h: item.h }, zIndex: 1 });
+    },
     deselect: () => setSelectedId(null),
   };
 }

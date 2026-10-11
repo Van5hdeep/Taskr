@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router";
-import { AlertTriangle, ArrowLeft, Loader2, RotateCcw } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router";
+import { AlertTriangle, ArrowLeft, Loader2, RotateCcw, Trash2 } from "../../lib/icons";
 import { toast } from "sonner";
 import SaveStatus from "../../components/ui/SaveStatus";
+import { useConfirm } from "../../components/ui/ConfirmDialog";
 import { LinkedItemsButton } from "../links/LinkedItems";
 import { formatSupabaseError } from "../../lib/supabase";
 import { readCrashBuffer, useAutosave } from "../../lib/useAutosave";
@@ -30,7 +31,26 @@ function LoadedFlow({ row }) {
     return result;
   }, [row.id]);
 
-  const autosave = useAutosave({ value, save, bufferKey, delay: 800, enabled: !recovery });
+  const navigate = useNavigate();
+  const confirm = useConfirm();
+  const [deleting, setDeleting] = useState(false);
+  const autosave = useAutosave({ value, save, bufferKey, delay: 800, enabled: !recovery && !deleting });
+
+  const deleteDiagram = async () => {
+    if (!(await confirm({ title: `Delete "${title || "Untitled flow"}"?`, message: "The diagram is permanently removed. This can't be undone.", confirmText: "Delete", destructive: true }))) return;
+    // Stop autosave (including its flush on leaving) so nothing writes to the deleted row.
+    setDeleting(true);
+    autosave.markSaved(value);
+    try {
+      await api.deleteFlow(row.id);
+      try { localStorage.removeItem(bufferKey); } catch { /* ignore */ }
+      toast.success("Diagram deleted");
+      navigate("/flow", { replace: true });
+    } catch (err) {
+      setDeleting(false);
+      toast.error(formatSupabaseError(err));
+    }
+  };
 
   const loadLatest = async () => {
     try {
@@ -51,15 +71,18 @@ function LoadedFlow({ row }) {
     } catch (err) { toast.error(formatSupabaseError(err)); }
   };
 
-  useEffect(() => { document.title = `${title || "Untitled flow"} · TASKR`; return () => { document.title = "TASKR"; }; }, [title]);
+  useEffect(() => { document.title = `${title || "Untitled flow"} · taskr`; return () => { document.title = "taskr"; }; }, [title]);
 
   return (
     <div className="flex h-[calc(100vh-56px)] min-h-0 flex-col lg:h-screen">
-      <header className="flex flex-none items-center gap-3 border-b border-slate-200 bg-white px-4 py-2.5">
-        <Link to="/flow" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800" aria-label="All diagrams" title="All diagrams"><ArrowLeft className="h-4 w-4" /></Link>
-        <input value={title} onChange={(event) => setTitle(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} aria-label="Diagram title" placeholder="Untitled flow" className="min-w-0 flex-1 rounded-md bg-transparent px-1 text-lg font-bold text-slate-900 outline-none hover:bg-slate-50 focus:bg-slate-50 focus:ring-2 focus:ring-blue-200" />
+      <header className="flex flex-none items-center gap-3 border-b border-stone-200 bg-white px-4 py-2.5">
+        <Link to="/flow" className="rounded-lg p-1.5 text-stone-500 hover:bg-stone-100 hover:text-stone-800" aria-label="All diagrams" title="All diagrams"><ArrowLeft className="h-4 w-4" /></Link>
+        <input value={title} onChange={(event) => setTitle(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} aria-label="Diagram title" placeholder="Untitled flow" className="min-w-0 flex-1 rounded-md bg-transparent px-1 text-lg font-bold text-stone-900 outline-none hover:bg-stone-50 focus:bg-stone-50 focus:ring-2 focus:ring-amber-200" />
         <LinkedItemsButton type="flow" id={row.id} />
         <SaveStatus status={autosave.status} />
+        <button type="button" onClick={deleteDiagram} disabled={deleting} className="rounded-lg p-1.5 text-stone-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50" aria-label="Delete diagram" title="Delete diagram">
+          {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+        </button>
       </header>
       {autosave.status === "conflict" && (
         <div className="flex flex-none flex-wrap items-center gap-3 border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">
@@ -110,11 +133,11 @@ export default function FlowEditorPage() {
   if (error) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-center">
-        <p className="text-sm text-slate-600 dark:text-slate-300">{error}</p>
-        <Link to="/flow" className="text-sm font-semibold text-blue-600 hover:underline">Back to diagrams</Link>
+        <p className="text-sm text-stone-600 dark:text-stone-300">{error}</p>
+        <Link to="/flow" className="text-sm font-semibold text-amber-700 hover:underline">Back to diagrams</Link>
       </div>
     );
   }
-  if (!row) return <div className="flex min-h-[60vh] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-blue-500" /></div>;
+  if (!row) return <div className="flex min-h-[60vh] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-amber-500" /></div>;
   return <LoadedFlow key={row.id} row={row} />;
 }

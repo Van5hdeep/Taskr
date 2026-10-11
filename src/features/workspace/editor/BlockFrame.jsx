@@ -1,4 +1,4 @@
-import { GripVertical } from "lucide-react";
+import { GripVertical } from "../../../lib/icons";
 
 const HANDLES = [
   { id: "nw", cursor: "nwse-resize", style: { top: -5, left: -5 } },
@@ -15,11 +15,19 @@ const HANDLES = [
  * Positions one block on its page and owns its selection chrome. All pointer
  * gestures are reported to the editor, which moves/resizes the selection.
  */
-export default function BlockFrame({ block, rect, selected, showHandles, interactive, editing, grip = false, autoHeight = false, onPointerDown, onDoubleClick, children }) {
+// Shapes use a faint dashed guide, so the shape itself reads as the object
+// rather than looking boxed inside a rectangle.
+const OUTLINES = {
+  solid: { selected: "outline outline-2 outline-offset-2 outline-amber-500", hover: "hover:outline hover:outline-1 hover:outline-offset-2 hover:outline-amber-300" },
+  subtle: { selected: "outline-dashed outline-1 outline-offset-4 outline-amber-400/70", hover: "" },
+};
+
+export default function BlockFrame({ block, rect, selected, showHandles, interactive, editing, grip = false, autoHeight = false, outline = "solid", onPointerDown, onDoubleClick, children }) {
+  const outlineClass = OUTLINES[outline] ?? OUTLINES.solid;
   return (
     <div
       data-block-id={block.id}
-      className={`absolute ${interactive ? "" : "pointer-events-none"} ${selected ? "outline outline-2 outline-offset-2 outline-blue-500" : interactive ? "hover:outline hover:outline-1 hover:outline-offset-2 hover:outline-blue-300" : ""}`}
+      className={`absolute ${interactive ? "" : "pointer-events-none"} ${selected ? outlineClass.selected : interactive ? outlineClass.hover : ""}`}
       style={{
         left: rect.x,
         top: rect.y,
@@ -48,7 +56,7 @@ export default function BlockFrame({ block, rect, selected, showHandles, interac
           aria-label="Drag to move"
           title="Drag to move"
           onPointerDown={(event) => { event.stopPropagation(); onPointerDown(event, block, { mode: "move", fromGrip: true }); }}
-          className="absolute -top-7 left-1/2 flex h-6 w-8 -translate-x-1/2 cursor-grab items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 shadow-sm active:cursor-grabbing"
+          className="absolute -top-7 left-1/2 flex h-6 w-8 -translate-x-1/2 cursor-grab items-center justify-center rounded-md border border-stone-200 bg-white text-stone-500 shadow-sm active:cursor-grabbing"
         >
           <GripVertical className="h-4 w-4" />
         </button>
@@ -58,7 +66,7 @@ export default function BlockFrame({ block, rect, selected, showHandles, interac
           key={handle.id}
           data-export-ignore
           role="presentation"
-          className="absolute z-20 h-2.5 w-2.5 rounded-sm border-[1.5px] border-blue-600 bg-white"
+          className="absolute z-20 h-2.5 w-2.5 rounded-sm border-[1.5px] border-amber-600 bg-white"
           style={{ ...handle.style, cursor: handle.cursor }}
           onPointerDown={(event) => { event.stopPropagation(); onPointerDown(event, block, { mode: "resize", handle: handle.id }); }}
         />

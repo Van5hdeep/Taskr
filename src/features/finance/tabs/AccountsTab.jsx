@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Archive, ArchiveRestore, ArrowLeftRight, Pencil, Plus, Scale, Wallet } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowLeftRight, Pencil, Plus, Scale, Trash2, Wallet } from "../../../lib/icons";
 import Modal from "../../../components/ui/Modal";
 import { useConfirm } from "../../../components/ui/ConfirmDialog";
 import { useMoneyFormat } from "../../../lib/profile";
@@ -83,15 +83,15 @@ function ReconcileForm({ account, balance, onClose }) {
   return (
     <Modal
       title={`Reconcile ${account.name}`}
-      description="Enter the real balance from your bank or app. TASKR records the difference as an adjustment."
+      description="Enter the real balance from your bank or app. taskr records the difference as an adjustment."
       onClose={onClose}
       size="sm"
       footer={<><button type="button" onClick={onClose} className={buttonGhost}>Cancel</button><button type="submit" form="reconcile-form" disabled={saving} className={buttonPrimary}>Save</button></>}
     >
       <form id="reconcile-form" onSubmit={submit} className="space-y-3">
         <Field label={liability ? "Actual amount owed" : "Actual balance"}><MoneyInput value={actual} onChange={setActual} autoFocus /></Field>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          TASKR shows {money(Math.abs(balance))}{liability ? " owed" : ""}. {difference ? `An adjustment of ${difference > 0 ? "+" : "−"}${money(Math.abs(difference))} will be added.` : "Nothing to adjust."}
+        <p className="text-xs text-stone-500 dark:text-stone-400">
+          taskr shows {money(Math.abs(balance))}{liability ? " owed" : ""}. {difference ? `An adjustment of ${difference > 0 ? "+" : "−"}${money(Math.abs(difference))} will be added.` : "Nothing to adjust."}
         </p>
       </form>
     </Modal>
@@ -99,7 +99,7 @@ function ReconcileForm({ account, balance, onClose }) {
 }
 
 export default function AccountsTab() {
-  const { accounts, balances, holdings, update } = useFinance();
+  const { accounts, balances, holdings, transactions, update, remove } = useFinance();
   const money = useMoneyFormat();
   const confirm = useConfirm();
   const [editing, setEditing] = useState(null);
@@ -115,16 +115,25 @@ export default function AccountsTab() {
     await update("accounts", account.id, { is_archived: !account.is_archived });
   };
 
+  const deleteAccount = async (account) => {
+    const used = transactions.filter((tx) => tx.account_id === account.id || tx.transfer_account_id === account.id).length;
+    const message = used
+      ? `Its ${used} transaction${used === 1 ? "" : "s"} will be deleted too. This can't be undone — archive it instead to keep the history.`
+      : "This can't be undone.";
+    if (!(await confirm({ title: `Delete ${account.name}?`, message, confirmText: "Delete", destructive: true }))) return;
+    await remove("accounts", account.id);
+  };
+
   return (
     <div className="space-y-5">
       <div className="grid gap-3 sm:grid-cols-4">
         {[["Net worth", worth.total], ["Cash & accounts", worth.assets], ["Investments", worth.investments], ["Owed", worth.liabilities]].map(([label, value]) => (
-          <Card key={label}><p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</p><p className="mt-1 text-xl font-extrabold tabular-nums text-slate-900 dark:text-white">{money(value)}</p></Card>
+          <Card key={label}><p className="text-[11px] font-bold uppercase tracking-wide text-stone-500 dark:text-stone-400">{label}</p><p className="mt-1 text-xl font-extrabold tabular-nums text-stone-900 dark:text-white">{money(value)}</p></Card>
         ))}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500"><input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} className="accent-blue-600" /> Show archived</label>
+        <label className="inline-flex items-center gap-2 text-xs font-semibold text-stone-500"><input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} className="accent-amber-600" /> Show archived</label>
         <div className="flex gap-2">
           <button type="button" onClick={() => setTransferring(true)} disabled={accounts.filter((a) => !a.is_archived).length < 2} className={buttonSecondary}><ArrowLeftRight className="h-4 w-4" /> Transfer</button>
           <button type="button" onClick={() => setEditing("new")} className={buttonPrimary}><Plus className="h-4 w-4" /> Add account</button>
@@ -140,17 +149,18 @@ export default function AccountsTab() {
               <Card key={account.id} className={account.is_archived ? "opacity-60" : ""}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-bold text-slate-900 dark:text-white">{account.name}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">{ACCOUNT_KINDS.find((kind) => kind.id === account.kind)?.label}</p>
+                    <p className="text-sm font-bold text-stone-900 dark:text-white">{account.name}</p>
+                    <p className="text-xs text-stone-500 dark:text-stone-400">{ACCOUNT_KINDS.find((kind) => kind.id === account.kind)?.label}</p>
                   </div>
                   <div className="flex gap-1">
-                    <button type="button" onClick={() => setReconciling(account)} title="Reconcile with actual balance" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/5"><Scale className="h-4 w-4" /></button>
-                    <button type="button" onClick={() => setEditing(account)} title="Edit" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/5"><Pencil className="h-4 w-4" /></button>
-                    <button type="button" onClick={() => toggleArchive(account)} title={account.is_archived ? "Restore" : "Archive"} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/5">{account.is_archived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}</button>
+                    <button type="button" onClick={() => setReconciling(account)} title="Reconcile with actual balance" className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-white/5"><Scale className="h-4 w-4" /></button>
+                    <button type="button" onClick={() => setEditing(account)} title="Edit" className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-white/5"><Pencil className="h-4 w-4" /></button>
+                    <button type="button" onClick={() => toggleArchive(account)} title={account.is_archived ? "Restore" : "Archive"} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-white/5">{account.is_archived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}</button>
+                    <button type="button" onClick={() => deleteAccount(account)} title="Delete" aria-label={`Delete ${account.name}`} className="rounded-lg p-1.5 text-stone-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 </div>
-                <p className={`mt-4 text-2xl font-extrabold tabular-nums ${owed ? "text-red-600 dark:text-red-400" : "text-slate-900 dark:text-white"}`}>{money(Math.abs(balance))}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{owed ? "owed" : "available"}</p>
+                <p className={`mt-4 text-2xl font-extrabold tabular-nums ${owed ? "text-red-600 dark:text-red-400" : "text-stone-900 dark:text-white"}`}>{money(Math.abs(balance))}</p>
+                <p className="text-xs text-stone-500 dark:text-stone-400">{owed ? "owed" : "available"}</p>
               </Card>
             );
           })}

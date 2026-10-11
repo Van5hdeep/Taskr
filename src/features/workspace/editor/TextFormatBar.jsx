@@ -1,7 +1,7 @@
 import { useEditorState } from "@tiptap/react";
 import {
   AlignCenter, AlignLeft, AlignRight, Bold, Highlighter, Italic, Link2, List, ListChecks, ListOrdered, RemoveFormatting, Strikethrough, Underline,
-} from "lucide-react";
+} from "../../../lib/icons";
 
 const TEXT_COLORS = ["#0f172a", "#2563eb", "#dc2626", "#16a34a", "#9333ea", "#ea580c", "#64748b"];
 const MARKERS = ["#fef08a", "#bbf7d0", "#bfdbfe", "#fbcfe8", "#ddd6fe"];
@@ -16,14 +16,14 @@ function Btn({ active, onClick, title, children }) {
       aria-pressed={active}
       onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}
-      className={`rounded-md p-1.5 transition-colors ${active ? "bg-blue-100 text-blue-700" : "text-slate-600 hover:bg-slate-100"}`}
+      className={`rounded-md p-1.5 transition-colors ${active ? "bg-amber-100 text-amber-800" : "text-stone-600 hover:bg-stone-100"}`}
     >
       {children}
     </button>
   );
 }
 
-const Divider = () => <span className="mx-1 h-5 w-px bg-slate-200" />;
+const Divider = () => <span className="mx-1 h-5 w-px bg-stone-200" />;
 
 /** Formatting for the text box being edited; every command acts on the selection. */
 export default function TextFormatBar({ editor }) {
@@ -67,7 +67,7 @@ export default function TextFormatBar({ editor }) {
           if (value === "p") chain().setParagraph().run();
           else chain().toggleHeading({ level: Number(value.slice(1)) }).run();
         }}
-        className="rounded-md border border-slate-200 bg-white px-1.5 py-1 text-xs text-slate-700"
+        className="rounded-md border border-stone-200 bg-white px-1.5 py-1 text-xs text-stone-700"
       >
         <option value="p">Text</option><option value="h1">Heading 1</option><option value="h2">Heading 2</option><option value="h3">Heading 3</option>
       </select>
@@ -75,7 +75,7 @@ export default function TextFormatBar({ editor }) {
         aria-label="Font size"
         value={state.fontSize}
         onChange={(event) => (event.target.value ? chain().setFontSize(event.target.value).run() : chain().unsetFontSize().run())}
-        className="ml-1 w-[72px] rounded-md border border-slate-200 bg-white px-1.5 py-1 text-xs text-slate-700"
+        className="ml-1 w-[72px] rounded-md border border-stone-200 bg-white px-1.5 py-1 text-xs text-stone-700"
       >
         <option value="">Size</option>
         {SIZES.map((size) => <option key={size} value={size}>{parseInt(size, 10)}</option>)}
@@ -89,13 +89,13 @@ export default function TextFormatBar({ editor }) {
       <Divider />
       <div className="flex items-center gap-1" aria-label="Text colour">
         {TEXT_COLORS.map((color) => (
-          <button key={color} type="button" title={`Text colour ${color}`} aria-label={`Text colour ${color}`} onMouseDown={(event) => event.preventDefault()} onClick={() => (color === "#0f172a" ? chain().unsetColor().run() : chain().setColor(color).run())} className={`h-4 w-4 rounded-full border ${state.color === color ? "ring-2 ring-blue-400 ring-offset-1" : "border-slate-300"}`} style={{ backgroundColor: color }} />
+          <button key={color} type="button" title={`Text colour ${color}`} aria-label={`Text colour ${color}`} onMouseDown={(event) => event.preventDefault()} onClick={() => (color === "#0f172a" ? chain().unsetColor().run() : chain().setColor(color).run())} className={`h-4 w-4 rounded-full border ${state.color === color ? "ring-2 ring-amber-400 ring-offset-1" : "border-stone-300"}`} style={{ backgroundColor: color }} />
         ))}
       </div>
       <Divider />
-      <Highlighter className="ml-1 h-3.5 w-3.5 text-slate-400" aria-hidden />
+      <Highlighter className="ml-1 h-3.5 w-3.5 text-stone-400" aria-hidden />
       {MARKERS.map((color) => (
-        <button key={color} type="button" title="Highlight" aria-label={`Highlight ${color}`} onMouseDown={(event) => event.preventDefault()} onClick={() => chain().toggleHighlight({ color }).run()} className="h-4 w-4 rounded border border-slate-300" style={{ backgroundColor: color }} />
+        <button key={color} type="button" title="Highlight" aria-label={`Highlight ${color}`} onMouseDown={(event) => event.preventDefault()} onClick={() => chain().toggleHighlight({ color }).run()} className="h-4 w-4 rounded border border-stone-300" style={{ backgroundColor: color }} />
       ))}
       <Divider />
       <Btn title="Bulleted list" active={state.bullet} onClick={() => chain().toggleBulletList().run()}><List className="h-4 w-4" /></Btn>

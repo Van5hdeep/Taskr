@@ -1,14 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { Toaster } from "sonner";
 import {
-  ChevronsLeft, ChevronsRight, GitMerge, Plus, Search, LayoutGrid, LogOut, Menu, Monitor, Moon,
-  PenTool, PieChart, Settings, StickyNote, Sun, UserRound, X,
-} from "lucide-react";
+  ChevronsLeft, ChevronsRight, ChevronUp, GitMerge, Lifebuoy, LogOut, Menu, PenTool, PieChart,
+  Plus, Search, Settings, StickyNote, UserRound, X, LayoutGrid,
+} from "../lib/icons";
 import { useAuth } from "../lib/auth/AuthProvider";
 import { useAppTheme, useTheme } from "../lib/theme";
 import { useConfirm } from "../components/ui/ConfirmDialog";
-import BrandLogo from "../components/BrandLogo";
+import BrandLogo, { QuadMark } from "../components/BrandLogo";
 import GlobalOverlays from "./GlobalOverlays";
 import { openCommandPalette, openQuickCapture } from "./globalEvents";
 
@@ -20,93 +20,128 @@ export const NAV_ITEMS = [
   { to: "/flow", label: "Flow", icon: GitMerge },
 ];
 
-const THEME_OPTIONS = [
-  { id: "light", icon: Sun, label: "Light" },
-  { id: "dark", icon: Moon, label: "Dark" },
-  { id: "system", icon: Monitor, label: "System" },
+const NAV_GROUPS = [
+  { label: "Main", items: NAV_ITEMS.slice(0, 1) },
+  { label: "Tools", items: NAV_ITEMS.slice(1) },
+  { label: "Support", items: [{ to: "/help", label: "Help & support", icon: Lifebuoy }] },
+  { label: "Account", items: [{ to: "/settings", label: "Settings", icon: Settings }] },
 ];
 
 const COLLAPSE_KEY = "taskr_sidebar_collapsed";
+const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 
-function SidebarContent({ collapsed, onNavigate, themePreference, onThemeChange }) {
+function UserMenu({ collapsed, onNavigate }) {
   const { email, isGuest, displayName, signOut } = useAuth();
   const confirm = useConfirm();
   const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = (event) => { if (!ref.current?.contains(event.target)) setOpen(false); };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [open]);
 
   const handleSignOut = async () => {
+    setOpen(false);
     const message = isGuest
       ? "You're using a guest account. Signing out loses access to its work unless you add an email in Settings first."
-      : "Are you sure you want to log out of TASKR?";
+      : "Are you sure you want to log out of taskr?";
     if (!(await confirm({ title: "Log out?", message, confirmText: "Log out", destructive: isGuest }))) return;
     await signOut();
     navigate("/", { replace: true });
   };
 
+  const initials = isGuest ? null : (displayName || "U").slice(0, 2).toUpperCase();
+  const go = (to) => { setOpen(false); onNavigate?.(); navigate(to); };
+
+  return (
+    <div ref={ref} className="relative">
+      {open && (
+        <div className="absolute bottom-full left-0 right-0 z-30 mb-2 min-w-48 rounded-2xl border border-stone-200 bg-white p-1.5 text-sm shadow-xl dark:border-white/10 dark:bg-ink-850">
+          <button type="button" onClick={() => go("/settings")} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left font-medium text-stone-700 hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-white/5"><UserRound className="h-4 w-4" /> Profile & settings</button>
+          <button type="button" onClick={handleSignOut} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10"><LogOut className="h-4 w-4" /> Log out</button>
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        title={collapsed ? (isGuest ? "Guest" : displayName) : undefined}
+        className={`flex w-full items-center gap-2.5 rounded-2xl border border-stone-200/80 bg-white p-2 text-left shadow-sm transition-colors hover:border-stone-300 dark:border-white/[0.07] dark:bg-ink-850 dark:hover:border-white/15 ${collapsed ? "justify-center" : ""}`}
+      >
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-400 text-xs font-bold text-stone-900">
+          {initials ?? <UserRound className="h-4 w-4" />}
+        </span>
+        {!collapsed && (
+          <>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-semibold text-stone-900 dark:text-stone-100">{isGuest ? "Guest" : displayName}</span>
+              <span className="block truncate text-xs text-stone-500 dark:text-stone-400">{email || "Not saved yet"}</span>
+            </span>
+            <ChevronUp className={`h-4 w-4 shrink-0 text-stone-400 transition-transform ${open ? "" : "rotate-180"}`} />
+          </>
+        )}
+      </button>
+    </div>
+  );
+}
+
+function SidebarContent({ collapsed, onNavigate }) {
+  const { isGuest } = useAuth();
+
   const linkClass = ({ isActive }) =>
-    `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${collapsed ? "justify-center" : ""} ${
+    `group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all ${collapsed ? "justify-center" : ""} ${
       isActive
-        ? "bg-blue-600/10 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300"
-        : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5"
+        ? "bg-white text-stone-900 shadow-[0_1px_2px_rgba(28,27,25,0.06),0_4px_12px_-4px_rgba(28,27,25,0.1)] dark:bg-white/[0.08] dark:text-white dark:shadow-none"
+        : "text-stone-600 hover:bg-white/60 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-white/[0.04] dark:hover:text-stone-100"
     }`;
 
   return (
-    <div className="flex h-full flex-col">
-      <div className={`mb-3 grid gap-1.5 ${collapsed ? "" : "grid-cols-2"}`}>
-        <button type="button" onClick={() => { onNavigate?.(); openCommandPalette(); }} title="Search and commands (Ctrl+K)" className={`flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-2 py-2 text-xs font-semibold text-slate-600 hover:border-blue-300 dark:border-white/10 dark:text-slate-300`}>
-          <Search className="h-4 w-4" />{!collapsed && "Search"}
-        </button>
-        <button type="button" onClick={() => { onNavigate?.(); openQuickCapture("task"); }} title="Quick add (Alt+N)" className="flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-2 py-2 text-xs font-bold text-white hover:bg-blue-700">
-          <Plus className="h-4 w-4" />{!collapsed && "Add"}
-        </button>
-      </div>
-      <nav className="flex-1 space-y-1" aria-label="Main">
-        {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
-          <NavLink key={to} to={to} className={linkClass} onClick={onNavigate} title={collapsed ? label : undefined}>
-            <Icon className="h-[18px] w-[18px] shrink-0" />
-            {!collapsed && label}
-          </NavLink>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <button
+        type="button"
+        onClick={() => { onNavigate?.(); openCommandPalette(); }}
+        title="Search and commands"
+        className={`mb-2 flex items-center gap-2.5 rounded-xl border border-stone-200/80 bg-white/70 px-3 py-2 text-sm text-stone-400 transition-colors hover:border-stone-300 hover:text-stone-600 dark:border-white/[0.07] dark:bg-white/[0.03] dark:hover:border-white/15 dark:hover:text-stone-300 ${collapsed ? "justify-center" : ""}`}
+      >
+        <Search className="h-4 w-4 shrink-0" />
+        {!collapsed && <><span className="flex-1 text-left">Search…</span><kbd className="rounded-md border border-stone-200 bg-stone-50 px-1.5 py-0.5 font-sans text-[10px] font-semibold text-stone-500 dark:border-white/10 dark:bg-white/5 dark:text-stone-400">{isMac ? "⌘K" : "Ctrl K"}</kbd></>}
+      </button>
+      <button
+        type="button"
+        onClick={() => { onNavigate?.(); openQuickCapture("task"); }}
+        title="Quick add (Alt+N)"
+        className={`mb-4 flex items-center gap-2 rounded-xl bg-stone-900 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-stone-800 dark:bg-amber-400 dark:text-stone-900 dark:hover:bg-amber-300 ${collapsed ? "justify-center" : ""}`}
+      >
+        <Plus className="h-4 w-4 shrink-0" strokeWidth={3} />{!collapsed && "Quick add"}
+      </button>
+
+      <nav className="-mx-1 flex-1 space-y-5 overflow-y-auto px-1" aria-label="Main">
+        {NAV_GROUPS.map((group) => (
+          <div key={group.label}>
+            {!collapsed && <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-stone-400 dark:text-stone-500">{group.label}</p>}
+            <div className="space-y-0.5">
+              {group.items.map(({ to, label, icon: Icon }) => (
+                <NavLink key={to} to={to} className={linkClass} onClick={onNavigate} title={collapsed ? label : undefined}>
+                  <Icon className="h-[18px] w-[18px] shrink-0" />
+                  {!collapsed && label}
+                </NavLink>
+              ))}
+            </div>
+          </div>
         ))}
       </nav>
 
-      <div className="space-y-2 border-t border-slate-200 pt-3 dark:border-white/10">
+      <div className="space-y-2 pt-3">
         {isGuest && !collapsed && (
-          <NavLink to="/settings" onClick={onNavigate} className="block rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-950/40 dark:text-amber-300">
+          <NavLink to="/settings/account" onClick={onNavigate} className="block rounded-xl border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200">
             Guest account — add an email to keep your work.
           </NavLink>
         )}
-        <div className={`flex gap-1 rounded-xl bg-slate-100 p-1 dark:bg-white/5 ${collapsed ? "flex-col" : ""}`} role="radiogroup" aria-label="Theme">
-          {THEME_OPTIONS.map(({ id, icon: Icon, label }) => (
-            <button
-              key={id}
-              type="button"
-              role="radio"
-              aria-checked={themePreference === id}
-              title={label}
-              onClick={() => onThemeChange(id)}
-              className={`flex flex-1 items-center justify-center rounded-lg py-1.5 transition-colors ${themePreference === id ? "bg-white text-blue-600 shadow-sm dark:bg-[#1c2650] dark:text-blue-300" : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"}`}
-            >
-              <Icon className="h-4 w-4" />
-            </button>
-          ))}
-        </div>
-        <NavLink to="/settings" className={linkClass} onClick={onNavigate} title={collapsed ? "Settings" : undefined}>
-          <Settings className="h-[18px] w-[18px] shrink-0" />
-          {!collapsed && "Settings"}
-        </NavLink>
-        <div className={`flex items-center gap-2 rounded-xl px-2 py-2 ${collapsed ? "flex-col" : ""}`}>
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
-            {isGuest ? <UserRound className="h-4 w-4" /> : (displayName || "U").slice(0, 2).toUpperCase()}
-          </span>
-          {!collapsed && (
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{isGuest ? "Guest" : displayName}</span>
-              {email && <span className="block truncate text-xs text-slate-500 dark:text-slate-400">{email}</span>}
-            </span>
-          )}
-          <button type="button" onClick={handleSignOut} title="Log out" aria-label="Log out" className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-950/40 dark:hover:text-red-400">
-            <LogOut className="h-4 w-4" />
-          </button>
-        </div>
+        <UserMenu collapsed={collapsed} onNavigate={onNavigate} />
       </div>
     </div>
   );
@@ -114,7 +149,7 @@ function SidebarContent({ collapsed, onNavigate, themePreference, onThemeChange 
 
 export default function AppShell() {
   const theme = useAppTheme();
-  const { dark, preference, setPreference } = theme;
+  const { dark } = theme;
   const t = useTheme(dark);
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -131,7 +166,7 @@ export default function AppShell() {
     });
   };
 
-  const sidebarSurface = "border-slate-200 bg-white dark:border-white/10 dark:bg-[#0b1129]";
+  const sidebarSurface = "bg-cream-100 dark:bg-ink-900";
 
   return (
     <div className={`flex min-h-screen ${t.shell}`}>
@@ -139,33 +174,33 @@ export default function AppShell() {
       <GlobalOverlays />
 
       {/* Desktop sidebar */}
-      <aside className={`sticky top-0 hidden h-screen shrink-0 print:!hidden flex-col border-r p-3 transition-[width] duration-200 lg:flex ${sidebarSurface} ${collapsed ? "w-[72px]" : "w-60"}`}>
-        <div className={`mb-5 flex items-center ${collapsed ? "justify-center" : "justify-between px-2"} pt-1`}>
-          {!collapsed && <BrandLogo className="app-wordmark" tone="dark" />}
-          <button type="button" onClick={toggleCollapsed} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/5 dark:hover:text-slate-200" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
+      <aside className={`sticky top-0 hidden h-screen shrink-0 flex-col border-r border-stone-200/70 p-3 transition-[width] duration-200 print:!hidden lg:flex dark:border-white/[0.06] ${sidebarSurface} ${collapsed ? "w-[76px]" : "w-64"}`}>
+        <div className={`mb-5 flex items-center pt-2 ${collapsed ? "flex-col gap-3" : "justify-between px-2"}`}>
+          {collapsed ? <QuadMark className="h-6 w-6 text-stone-900 dark:text-amber-400" title="taskr" /> : <BrandLogo size={24} markClassName="text-stone-900 dark:text-amber-400" wordClassName="text-stone-900 dark:text-white" />}
+          <button type="button" onClick={toggleCollapsed} className="rounded-lg p-1.5 text-stone-400 hover:bg-white/70 hover:text-stone-700 dark:hover:bg-white/5 dark:hover:text-stone-200" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
             {collapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
           </button>
         </div>
-        <SidebarContent collapsed={collapsed} themePreference={preference} onThemeChange={setPreference} />
+        <SidebarContent collapsed={collapsed} />
       </aside>
 
       {/* Mobile top bar + drawer */}
-      <div className={`print:hidden fixed inset-x-0 top-0 z-[110] flex h-14 items-center justify-between border-b px-4 lg:hidden ${sidebarSurface}`}>
-        <BrandLogo className="app-wordmark" tone="dark" />
-        <button type="button" onClick={() => setMobileOpen(true)} className="rounded-lg p-2 text-slate-600 dark:text-slate-300" aria-label="Open navigation">
+      <div className={`fixed inset-x-0 top-0 z-[110] flex h-14 items-center justify-between border-b border-stone-200/70 px-4 print:hidden lg:hidden dark:border-white/[0.06] ${sidebarSurface}`}>
+        <BrandLogo size={22} markClassName="text-stone-900 dark:text-amber-400" wordClassName="text-stone-900 dark:text-white" />
+        <button type="button" onClick={() => setMobileOpen(true)} className="rounded-lg p-2 text-stone-600 dark:text-stone-300" aria-label="Open navigation">
           <Menu className="h-5 w-5" />
         </button>
       </div>
-      <div className={`fixed inset-0 z-[120] bg-black/40 transition-opacity lg:hidden ${mobileOpen ? "opacity-100" : "pointer-events-none opacity-0"}`} onClick={() => setMobileOpen(false)} />
-      <aside className={`fixed left-0 top-0 z-[130] flex h-full w-[280px] flex-col border-r p-4 transition-transform duration-300 lg:hidden ${sidebarSurface} ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`} aria-hidden={!mobileOpen}>
+      <div className={`fixed inset-0 z-[120] bg-stone-900/30 backdrop-blur-[2px] transition-opacity lg:hidden ${mobileOpen ? "opacity-100" : "pointer-events-none opacity-0"}`} onClick={() => setMobileOpen(false)} />
+      <aside className={`fixed left-0 top-0 z-[130] flex h-full w-[284px] flex-col p-4 transition-transform duration-300 lg:hidden ${sidebarSurface} ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`} aria-hidden={!mobileOpen}>
         <div className="mb-6 flex items-center justify-between">
-          <BrandLogo className="app-wordmark" tone="dark" />
-          <button type="button" onClick={() => setMobileOpen(false)} className="rounded-lg p-2 text-slate-500" aria-label="Close navigation"><X className="h-4 w-4" /></button>
+          <BrandLogo size={22} markClassName="text-stone-900 dark:text-amber-400" wordClassName="text-stone-900 dark:text-white" />
+          <button type="button" onClick={() => setMobileOpen(false)} className="rounded-lg p-2 text-stone-500" aria-label="Close navigation"><X className="h-4 w-4" /></button>
         </div>
-        <SidebarContent collapsed={false} onNavigate={() => setMobileOpen(false)} themePreference={preference} onThemeChange={setPreference} />
+        <SidebarContent collapsed={false} onNavigate={() => setMobileOpen(false)} />
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col pt-14 lg:pt-0 print:pt-0">
+      <div className="taskr-page-enter flex min-w-0 flex-1 flex-col pt-14 lg:pt-0 print:pt-0">
         <Outlet context={{ t, dark, theme }} />
       </div>
     </div>

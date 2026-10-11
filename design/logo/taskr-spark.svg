@@ -1,0 +1,11 @@
+<!-- TASKR logo option: Spark -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="currentColor">
+  <g transform="rotate(0 32 32)"><rect class="tx-ray" style="animation-delay:0.00s" x="28" y="3" width="8" height="18" rx="4"/></g>
+  <g transform="rotate(45 32 32)"><rect class="tx-ray" style="animation-delay:0.05s" x="28" y="9" width="8" height="12" rx="4"/></g>
+  <g transform="rotate(90 32 32)"><rect class="tx-ray" style="animation-delay:0.10s" x="28" y="3" width="8" height="18" rx="4"/></g>
+  <g transform="rotate(135 32 32)"><rect class="tx-ray" style="animation-delay:0.15s" x="28" y="9" width="8" height="12" rx="4"/></g>
+  <g transform="rotate(180 32 32)"><rect class="tx-ray" style="animation-delay:0.20s" x="28" y="3" width="8" height="18" rx="4"/></g>
+  <g transform="rotate(225 32 32)"><rect class="tx-ray" style="animation-delay:0.25s" x="28" y="9" width="8" height="12" rx="4"/></g>
+  <g transform="rotate(270 32 32)"><rect class="tx-ray" style="animation-delay:0.30s" x="28" y="3" width="8" height="18" rx="4"/></g>
+  <g transform="rotate(315 32 32)"><rect class="tx-ray" style="animation-delay:0.35s" x="28" y="9" width="8" height="12" rx="4"/></g>
+</svg>

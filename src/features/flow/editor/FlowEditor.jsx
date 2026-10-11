@@ -7,7 +7,7 @@ import "@xyflow/react/dist/style.css";
 import {
   AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignStartHorizontal, AlignStartVertical,
   ArrowLeftRight, ChevronDown, Code2, Copy, Download, FileImage, FileText, Image as ImageIcon, LayoutGrid, Redo, Trash2, Undo, Wand2, X,
-} from "lucide-react";
+} from "../../../lib/icons";
 import { toast } from "sonner";
 import { alignBlocks, distributeBlocks } from "../../workspace/geometry";
 import { EDGE_TYPES, kindInfo, makeEdge, makeNode, NODE_COLORS, NODE_KINDS, nodesInLane, uid } from "../model";
@@ -42,7 +42,7 @@ function keepSelection(next, previous) {
 
 function Btn({ title, onClick, disabled, active, children, className = "" }) {
   return (
-    <button type="button" title={title} aria-label={title} onClick={onClick} disabled={disabled} className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors disabled:opacity-40 ${active ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"} ${className}`}>
+    <button type="button" title={title} aria-label={title} onClick={onClick} disabled={disabled} className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors disabled:opacity-40 ${active ? "bg-stone-900 dark:bg-amber-400 dark:text-stone-900 text-white" : "text-stone-600 hover:bg-stone-100"} ${className}`}>
       {children}
     </button>
   );
@@ -52,27 +52,27 @@ function Inspector({ nodes, edges, onNodeData, onNodeKind, onEdge, onDelete, onA
   const selectedNodes = nodes.filter((node) => node.selected);
   const selectedEdges = edges.filter((edge) => edge.selected);
   if (!selectedNodes.length && !selectedEdges.length) return null;
-  const field = "w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100";
+  const field = "w-full rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs text-stone-800 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100";
 
   if (selectedNodes.length > 1 || (selectedNodes.length && selectedEdges.length)) {
     return (
-      <aside className="w-60 flex-none space-y-3 overflow-y-auto border-l border-slate-200 bg-white p-4">
-        <p className="text-xs font-bold text-slate-700">{selectedNodes.length} blocks{selectedEdges.length ? `, ${selectedEdges.length} connectors` : ""}</p>
+      <aside className="w-60 flex-none space-y-3 overflow-y-auto border-l border-stone-200 bg-white p-4">
+        <p className="text-xs font-bold text-stone-700">{selectedNodes.length} blocks{selectedEdges.length ? `, ${selectedEdges.length} connectors` : ""}</p>
         {selectedNodes.length > 1 && (
           <>
             <div className="grid grid-cols-6 gap-1">
               {[["left", AlignStartVertical], ["center", AlignCenterVertical], ["right", AlignEndVertical], ["top", AlignStartHorizontal], ["middle", AlignCenterHorizontal], ["bottom", AlignEndHorizontal]].map(([mode, Icon]) => (
-                <button key={mode} type="button" title={`Align ${mode}`} aria-label={`Align ${mode}`} onClick={() => onAlign(mode)} className="flex h-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100"><Icon className="h-4 w-4" /></button>
+                <button key={mode} type="button" title={`Align ${mode}`} aria-label={`Align ${mode}`} onClick={() => onAlign(mode)} className="flex h-8 items-center justify-center rounded-md text-stone-600 hover:bg-stone-100"><Icon className="h-4 w-4" /></button>
               ))}
             </div>
             {selectedNodes.length > 2 && (
               <div className="grid grid-cols-2 gap-1">
-                <button type="button" onClick={() => onDistribute("x")} className="rounded-md bg-slate-100 px-2 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-200">Space across</button>
-                <button type="button" onClick={() => onDistribute("y")} className="rounded-md bg-slate-100 px-2 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-200">Space down</button>
+                <button type="button" onClick={() => onDistribute("x")} className="rounded-md bg-stone-100 px-2 py-1.5 text-[11px] font-semibold text-stone-600 hover:bg-stone-200">Space across</button>
+                <button type="button" onClick={() => onDistribute("y")} className="rounded-md bg-stone-100 px-2 py-1.5 text-[11px] font-semibold text-stone-600 hover:bg-stone-200">Space down</button>
               </div>
             )}
             <div>
-              <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">Colour</p>
+              <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-stone-500">Colour</p>
               <div className="flex flex-wrap gap-1.5">{NODE_COLORS.map((color) => <button key={color.id} type="button" title={color.label} aria-label={color.label} onClick={() => selectedNodes.forEach((node, i) => onNodeData(node.id, { color: color.id }, i === selectedNodes.length - 1))} className="h-6 w-6 rounded-full border-2 border-white shadow" style={{ backgroundColor: color.accent }} />)}</div>
             </div>
           </>
@@ -85,15 +85,15 @@ function Inspector({ nodes, edges, onNodeData, onNodeKind, onEdge, onDelete, onA
   if (selectedNodes.length === 1) {
     const node = selectedNodes[0];
     return (
-      <aside className="w-60 flex-none space-y-4 overflow-y-auto border-l border-slate-200 bg-white p-4">
-        <p className="text-xs font-bold text-slate-700">{kindInfo(node.data.kind).label}</p>
+      <aside className="w-60 flex-none space-y-4 overflow-y-auto border-l border-stone-200 bg-white p-4">
+        <p className="text-xs font-bold text-stone-700">{kindInfo(node.data.kind).label}</p>
         <label className="block">
-          <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Label</span>
+          <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-stone-500">Label</span>
           <textarea key={node.id} defaultValue={node.data.label} rows={3} onBlur={(event) => { if (event.target.value !== node.data.label) onNodeData(node.id, { label: event.target.value }); }} className={`${field} resize-y`} />
         </label>
         {node.type !== "lane" && (
           <label className="block">
-            <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Shape</span>
+            <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-stone-500">Shape</span>
             <select value={node.data.kind} onChange={(event) => onNodeKind(node.id, event.target.value)} className={field}>
               {NODE_KINDS.filter((item) => item.kind !== "lane").map((item) => <option key={item.kind} value={item.kind}>{item.label}</option>)}
             </select>
@@ -101,8 +101,8 @@ function Inspector({ nodes, edges, onNodeData, onNodeKind, onEdge, onDelete, onA
         )}
         {node.type !== "lane" && (
           <div>
-            <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">Colour</p>
-            <div className="flex flex-wrap gap-1.5">{NODE_COLORS.map((color) => <button key={color.id} type="button" title={color.label} aria-label={color.label} onClick={() => onNodeData(node.id, { color: color.id })} className={`h-6 w-6 rounded-full border-2 border-white shadow ${node.data.color === color.id ? "ring-2 ring-blue-500 ring-offset-1" : ""}`} style={{ backgroundColor: color.accent }} />)}</div>
+            <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-stone-500">Colour</p>
+            <div className="flex flex-wrap gap-1.5">{NODE_COLORS.map((color) => <button key={color.id} type="button" title={color.label} aria-label={color.label} onClick={() => onNodeData(node.id, { color: color.id })} className={`h-6 w-6 rounded-full border-2 border-white shadow ${node.data.color === color.id ? "ring-2 ring-amber-500 ring-offset-1" : ""}`} style={{ backgroundColor: color.accent }} />)}</div>
           </div>
         )}
         <button type="button" onClick={onDelete} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-200 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
@@ -112,22 +112,22 @@ function Inspector({ nodes, edges, onNodeData, onNodeKind, onEdge, onDelete, onA
 
   const edge = selectedEdges[0];
   return (
-    <aside className="w-60 flex-none space-y-4 overflow-y-auto border-l border-slate-200 bg-white p-4">
-      <p className="text-xs font-bold text-slate-700">Connector</p>
+    <aside className="w-60 flex-none space-y-4 overflow-y-auto border-l border-stone-200 bg-white p-4">
+      <p className="text-xs font-bold text-stone-700">Connector</p>
       <label className="block">
-        <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Label</span>
+        <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-stone-500">Label</span>
         <input key={edge.id} defaultValue={edge.label} onBlur={(event) => { if (event.target.value !== edge.label) onEdge(edge.id, { label: event.target.value }); }} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} placeholder="e.g. Yes, request, 1 : N" className={field} />
       </label>
       <label className="block">
-        <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Route</span>
+        <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-stone-500">Route</span>
         <select value={edge.type ?? "smoothstep"} onChange={(event) => onEdge(edge.id, { type: event.target.value })} className={field}>
           {EDGE_TYPES.map((type) => <option key={type.id} value={type.id}>{type.label}</option>)}
         </select>
       </label>
       <div className="grid grid-cols-2 gap-1">
-        {["solid", "dashed"].map((style) => <button key={style} type="button" onClick={() => onEdge(edge.id, { data: { style } })} className={`rounded-md py-1.5 text-[11px] font-bold capitalize ${edge.data?.style === style || (!edge.data?.style && style === "solid") ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"}`}>{style}</button>)}
+        {["solid", "dashed"].map((style) => <button key={style} type="button" onClick={() => onEdge(edge.id, { data: { style } })} className={`rounded-md py-1.5 text-[11px] font-bold capitalize ${edge.data?.style === style || (!edge.data?.style && style === "solid") ? "bg-amber-100 text-amber-800" : "bg-stone-100 text-stone-600"}`}>{style}</button>)}
       </div>
-      <button type="button" onClick={() => onReverse(edge.id)} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-slate-100 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200"><ArrowLeftRight className="h-3.5 w-3.5" /> Reverse direction</button>
+      <button type="button" onClick={() => onReverse(edge.id)} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-stone-100 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-200"><ArrowLeftRight className="h-3.5 w-3.5" /> Reverse direction</button>
       <button type="button" onClick={onDelete} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-200 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
     </aside>
   );
@@ -421,16 +421,16 @@ function Editor({ scene, commit, undo, redo, canUndo, canRedo, title, viewport, 
   return (
     <FlowEditorContext.Provider value={contextValue}>
       <div className="flex min-h-0 flex-1 flex-col">
-        <div className="flex flex-none flex-wrap items-center gap-1 border-b border-slate-200 bg-white px-3 py-1.5">
+        <div className="flex flex-none flex-wrap items-center gap-1 border-b border-stone-200 bg-white px-3 py-1.5">
           <Btn title="Undo (Ctrl+Z)" onClick={undo} disabled={!canUndo}><Undo className="h-4 w-4" /></Btn>
           <Btn title="Redo (Ctrl+Y)" onClick={redo} disabled={!canRedo}><Redo className="h-4 w-4" /></Btn>
-          <span className="mx-1 h-6 w-px bg-slate-200" />
+          <span className="mx-1 h-6 w-px bg-stone-200" />
           <div className="relative" data-flow-menu>
             <Btn title="Tidy up — arrange automatically" onClick={() => setMenu(menu === "tidy" ? null : "tidy")} active={menu === "tidy"}><Wand2 className="h-4 w-4" /> Tidy up <ChevronDown className="h-3 w-3" /></Btn>
             {menu === "tidy" && (
-              <div className="absolute left-0 top-full z-50 mt-1 w-44 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
-                <button type="button" onClick={() => tidy("TB")} className="block w-full rounded-lg px-3 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50">Top to bottom</button>
-                <button type="button" onClick={() => tidy("LR")} className="block w-full rounded-lg px-3 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50">Left to right</button>
+              <div className="absolute left-0 top-full z-50 mt-1 w-44 rounded-xl border border-stone-200 bg-white p-1.5 shadow-xl">
+                <button type="button" onClick={() => tidy("TB")} className="block w-full rounded-lg px-3 py-1.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50">Top to bottom</button>
+                <button type="button" onClick={() => tidy("LR")} className="block w-full rounded-lg px-3 py-1.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50">Left to right</button>
               </div>
             )}
           </div>
@@ -438,22 +438,22 @@ function Editor({ scene, commit, undo, redo, canUndo, canRedo, title, viewport, 
           <div className="relative ml-auto" data-flow-menu>
             <Btn title="Export" onClick={() => setMenu(menu === "export" ? null : "export")} active={menu === "export"} disabled={busy}><Download className="h-4 w-4" /> Export <ChevronDown className="h-3 w-3" /></Btn>
             {menu === "export" && (
-              <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
-                <button type="button" onClick={() => runExport("png")} className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50"><ImageIcon className="h-4 w-4 text-blue-500" /> PNG image</button>
-                <button type="button" onClick={() => runExport("svg")} className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50"><FileImage className="h-4 w-4 text-violet-500" /> SVG (vector)</button>
-                <button type="button" onClick={() => runExport("pdf")} className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50"><FileText className="h-4 w-4 text-rose-500" /> PDF</button>
-                <div className="my-1 h-px bg-slate-100" />
-                <button type="button" onClick={() => runExport("mermaid-copy")} className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50"><Copy className="h-4 w-4 text-emerald-600" /> Copy as Mermaid</button>
-                <button type="button" onClick={() => runExport("mermaid-file")} className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50"><Code2 className="h-4 w-4 text-emerald-600" /> Download .mmd</button>
+              <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-xl border border-stone-200 bg-white p-1.5 shadow-xl">
+                <button type="button" onClick={() => runExport("png")} className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50"><ImageIcon className="h-4 w-4 text-amber-500" /> PNG image</button>
+                <button type="button" onClick={() => runExport("svg")} className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50"><FileImage className="h-4 w-4 text-violet-500" /> SVG (vector)</button>
+                <button type="button" onClick={() => runExport("pdf")} className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50"><FileText className="h-4 w-4 text-rose-500" /> PDF</button>
+                <div className="my-1 h-px bg-stone-100" />
+                <button type="button" onClick={() => runExport("mermaid-copy")} className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50"><Copy className="h-4 w-4 text-emerald-600" /> Copy as Mermaid</button>
+                <button type="button" onClick={() => runExport("mermaid-file")} className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50"><Code2 className="h-4 w-4 text-emerald-600" /> Download .mmd</button>
               </div>
             )}
           </div>
         </div>
 
         <div className="flex min-h-0 flex-1">
-          <aside className="hidden w-48 flex-none overflow-y-auto border-r border-slate-200 bg-slate-50/80 p-3 md:block" aria-label="Blocks">
-            <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Blocks</p>
-            <p className="mb-3 text-[11px] leading-4 text-slate-400">Drag onto the canvas or click to add.</p>
+          <aside className="hidden w-48 flex-none overflow-y-auto border-r border-stone-200 bg-stone-50/80 p-3 md:block" aria-label="Blocks">
+            <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-stone-500">Blocks</p>
+            <p className="mb-3 text-[11px] leading-4 text-stone-400">Drag onto the canvas or click to add.</p>
             <div className="space-y-1">
               {NODE_KINDS.map((item) => (
                 <button
@@ -463,14 +463,14 @@ function Editor({ scene, commit, undo, redo, canUndo, canRedo, title, viewport, 
                   onDragStart={(event) => { event.dataTransfer.setData("application/taskr-flow-kind", item.kind); event.dataTransfer.effectAllowed = "move"; }}
                   onClick={() => addAtCenter(item.kind)}
                   title={item.hint}
-                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-white hover:shadow-sm"
+                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-semibold text-stone-700 hover:bg-white hover:shadow-sm"
                 >
                   <span className="h-3 w-3 shrink-0 rounded-sm border-2" style={{ borderColor: NODE_COLORS.find((color) => color.id === item.color)?.accent }} />
                   {item.label}
                 </button>
               ))}
             </div>
-            <div className="mt-5 space-y-1 border-t border-slate-200 pt-3 text-[11px] leading-4 text-slate-500">
+            <div className="mt-5 space-y-1 border-t border-stone-200 pt-3 text-[11px] leading-4 text-stone-500">
               <p><strong>Connect:</strong> drag from a dot on a block.</p>
               <p><strong>Rename:</strong> double-click a block.</p>
               <p><strong>Select many:</strong> Shift + drag.</p>
@@ -480,7 +480,7 @@ function Editor({ scene, commit, undo, redo, canUndo, canRedo, title, viewport, 
 
           <div
             ref={wrapperRef}
-            className="relative min-w-0 flex-1 bg-slate-100"
+            className="relative min-w-0 flex-1 bg-stone-100"
             onDragOver={(event) => { if (event.dataTransfer.types.includes("application/taskr-flow-kind")) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; } }}
             onDrop={(event) => {
               const kind = event.dataTransfer.getData("application/taskr-flow-kind");
@@ -523,10 +523,10 @@ function Editor({ scene, commit, undo, redo, canUndo, canRedo, title, viewport, 
             </ReactFlow>
             {!nodes.length && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                <div className="max-w-sm rounded-2xl border border-dashed border-slate-300 bg-white/95 p-6 text-center shadow-sm">
+                <div className="max-w-sm rounded-2xl border border-dashed border-stone-300 bg-white/95 p-6 text-center shadow-sm">
                   <LayoutGrid className="mx-auto h-6 w-6 text-violet-500" />
-                  <p className="mt-2 text-sm font-bold text-slate-800">Empty canvas</p>
-                  <p className="mt-1 text-xs text-slate-500">Drag blocks from the left, or paste Mermaid text with the Mermaid button.</p>
+                  <p className="mt-2 text-sm font-bold text-stone-800">Empty canvas</p>
+                  <p className="mt-1 text-xs text-stone-500">Drag blocks from the left, or paste Mermaid text with the Mermaid button.</p>
                 </div>
               </div>
             )}
@@ -546,13 +546,13 @@ function Editor({ scene, commit, undo, redo, canUndo, canRedo, title, viewport, 
         </div>
 
         {quickAdd && (
-          <div className="fixed z-[90] w-48 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl" style={{ left: quickAdd.x + 8, top: quickAdd.y + 8 }} data-flow-menu>
+          <div className="fixed z-[90] w-48 rounded-xl border border-stone-200 bg-white p-1.5 shadow-xl" style={{ left: quickAdd.x + 8, top: quickAdd.y + 8 }} data-flow-menu>
             <div className="mb-1 flex items-center justify-between px-2 pt-1">
-              <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Add next</span>
-              <button type="button" onClick={() => setQuickAdd(null)} aria-label="Close" className="text-slate-400 hover:text-slate-700"><X className="h-3.5 w-3.5" /></button>
+              <span className="text-[11px] font-bold uppercase tracking-wide text-stone-500">Add next</span>
+              <button type="button" onClick={() => setQuickAdd(null)} aria-label="Close" className="text-stone-400 hover:text-stone-700"><X className="h-3.5 w-3.5" /></button>
             </div>
             {NODE_KINDS.filter((item) => item.kind !== "lane").map((item) => (
-              <button key={item.kind} type="button" onClick={() => chooseQuickAdd(item.kind)} className="block w-full rounded-lg px-2.5 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-blue-50">{item.label}</button>
+              <button key={item.kind} type="button" onClick={() => chooseQuickAdd(item.kind)} className="block w-full rounded-lg px-2.5 py-1.5 text-left text-xs font-semibold text-stone-700 hover:bg-amber-50">{item.label}</button>
             ))}
           </div>
         )}

@@ -5,7 +5,7 @@ import { Command } from "cmdk";
 import {
   ArrowRight, FilePlus2, FileText, GitBranch, Keyboard, LayoutGrid, Loader2, LogOut, Monitor, Moon, PenTool, PieChart, Plus,
   Receipt, Search, Settings, StickyNote, Sun, Wallet,
-} from "lucide-react";
+} from "../lib/icons";
 import { toast } from "sonner";
 import { useAuth } from "../lib/auth/AuthProvider";
 import { useAppTheme } from "../lib/theme";
@@ -17,17 +17,22 @@ import { openQuickCapture, openShortcuts } from "./globalEvents";
 
 const GO = [
   { label: "Home", to: "/home", icon: LayoutGrid, keywords: "dashboard today" },
-  { label: "Sticker", to: "/sticker", icon: StickyNote, keywords: "tasks board matrix" },
-  { label: "Finance overview", to: "/finance", icon: PieChart, keywords: "money safe to spend" },
-  { label: "Transactions", to: "/finance/transactions", icon: Receipt, keywords: "finance expenses income" },
+  { label: "Sticker board", to: "/sticker", icon: StickyNote, keywords: "tasks board stickers todo" },
+  { label: "Done stickers", to: "/sticker?show=done", icon: StickyNote, keywords: "completed finished tasks" },
+  { label: "Finance summary", to: "/finance", icon: PieChart, keywords: "money safe to spend overview" },
+  { label: "Money in & out", to: "/finance/transactions", icon: Receipt, keywords: "finance transactions expenses income" },
   { label: "Budgets", to: "/finance/budgets", icon: Wallet, keywords: "finance" },
-  { label: "Bills & subscriptions", to: "/finance/bills", icon: Wallet, keywords: "finance recurring" },
-  { label: "Goals", to: "/finance/goals", icon: Wallet, keywords: "finance savings" },
+  { label: "Bills", to: "/finance/bills", icon: Wallet, keywords: "finance recurring subscriptions" },
+  { label: "Savings goals", to: "/finance/goals", icon: Wallet, keywords: "finance savings" },
   { label: "Investments", to: "/finance/investments", icon: Wallet, keywords: "finance sip mutual fund" },
   { label: "Accounts", to: "/finance/accounts", icon: Wallet, keywords: "finance net worth" },
   { label: "Workspace documents", to: "/workspace", icon: PenTool, keywords: "notes notebook" },
   { label: "Flow diagrams", to: "/flow", icon: GitBranch, keywords: "diagram flowchart" },
-  { label: "Settings", to: "/settings", icon: Settings, keywords: "profile currency theme account" },
+  { label: "Settings", to: "/settings", icon: Settings, keywords: "profile user currency account" },
+  { label: "Appearance", to: "/settings/appearance", icon: Sun, keywords: "theme dark light mode" },
+  { label: "Help & support", to: "/help", icon: Settings, keywords: "help faq support how" },
+  { label: "Privacy & my data", to: "/settings/privacy", icon: Settings, keywords: "export download privacy" },
+  { label: "About taskr", to: "/settings/about", icon: Settings, keywords: "about version" },
 ];
 
 const RESULT_ICONS = { task: StickyNote, document: FileText, flow: GitBranch, transaction: Receipt };
@@ -35,15 +40,15 @@ const RESULT_LABELS = { task: "Tasks", document: "Documents", flow: "Diagrams", 
 
 function Item({ onSelect, icon: Icon, children, hint, value, keywords }) {
   return (
-    <Command.Item value={value} keywords={keywords ? [keywords] : undefined} onSelect={onSelect} className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-700 aria-selected:bg-blue-50 aria-selected:text-blue-800 dark:text-slate-200 dark:aria-selected:bg-blue-500/15 dark:aria-selected:text-blue-200">
-      {Icon && <Icon className="h-4 w-4 shrink-0 text-slate-400" />}
+    <Command.Item value={value} keywords={keywords ? [keywords] : undefined} onSelect={onSelect} className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm text-stone-700 aria-selected:bg-amber-50 aria-selected:text-amber-900 dark:text-stone-200 dark:aria-selected:bg-amber-500/15 dark:aria-selected:text-amber-200">
+      {Icon && <Icon className="h-4 w-4 shrink-0 text-stone-400" />}
       <span className="min-w-0 flex-1 truncate">{children}</span>
-      {hint && <span className="text-[11px] text-slate-400">{hint}</span>}
+      {hint && <span className="text-[11px] text-stone-400">{hint}</span>}
     </Command.Item>
   );
 }
 
-const groupClass = "px-1 pb-2 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-3 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-bold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-slate-400";
+const groupClass = "px-1 pb-2 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-3 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-bold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-stone-400";
 
 /** Ctrl/Cmd+K: go anywhere, create anything, search everything. */
 export default function CommandPalette({ onClose }) {
@@ -87,16 +92,16 @@ export default function CommandPalette({ onClose }) {
   const grouped = results.reduce((acc, item) => { (acc[item.type] ??= []).push(item); return acc; }, {});
 
   return createPortal(
-    <div className="fixed inset-0 z-[200] flex items-start justify-center bg-slate-900/40 p-4 pt-[12vh] backdrop-blur-sm" onMouseDown={onClose}>
-      <div onMouseDown={(event) => event.stopPropagation()} className="w-full max-w-xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0e1532]">
+    <div className="fixed inset-0 z-[200] flex items-start justify-center bg-stone-900/40 p-4 pt-[12vh] backdrop-blur-sm" onMouseDown={onClose}>
+      <div onMouseDown={(event) => event.stopPropagation()} className="w-full max-w-xl overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl dark:border-white/10 dark:bg-ink-900">
         <Command label="Command palette" loop>
-          <div className="flex items-center gap-2 border-b border-slate-100 px-4 dark:border-white/10">
-            {searching && query ? <Loader2 className="h-4 w-4 animate-spin text-slate-400" /> : <Search className="h-4 w-4 text-slate-400" />}
-            <Command.Input autoFocus value={query} onValueChange={setQuery} placeholder="Search or type a command…" className="h-12 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-white" />
-            <kbd className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500 dark:bg-white/10">Esc</kbd>
+          <div className="flex items-center gap-2 border-b border-stone-100 px-4 dark:border-white/10">
+            {searching && query ? <Loader2 className="h-4 w-4 animate-spin text-stone-400" /> : <Search className="h-4 w-4 text-stone-400" />}
+            <Command.Input autoFocus value={query} onValueChange={setQuery} placeholder="Search or type a command…" className="h-12 flex-1 bg-transparent text-sm text-stone-900 outline-none placeholder:text-stone-400 dark:text-white" />
+            <kbd className="rounded bg-stone-100 px-1.5 py-0.5 text-[10px] font-bold text-stone-500 dark:bg-white/10">Esc</kbd>
           </div>
           <Command.List className="max-h-[60vh] overflow-y-auto py-1">
-            <Command.Empty className="px-4 py-8 text-center text-sm text-slate-500">{searching ? "Searching…" : "No results."}</Command.Empty>
+            <Command.Empty className="px-4 py-8 text-center text-sm text-stone-500">{searching ? "Searching…" : "No results."}</Command.Empty>
 
             {Object.entries(grouped).map(([type, items]) => (
               <Command.Group key={type} heading={query.trim() ? RESULT_LABELS[type] : `Recent ${RESULT_LABELS[type].toLowerCase()}`} className={groupClass}>
@@ -109,7 +114,7 @@ export default function CommandPalette({ onClose }) {
             ))}
 
             <Command.Group heading="Create" className={groupClass}>
-              <Item value="new task" keywords="add capture todo" icon={Plus} onSelect={run(() => openQuickCapture("task"))} hint="Alt N">New task</Item>
+              <Item value="new sticker" keywords="add capture todo task" icon={Plus} onSelect={run(() => openQuickCapture("task"))} hint="Alt N">New sticker</Item>
               <Item value="new expense" keywords="add spend money" icon={Plus} onSelect={run(() => openQuickCapture("expense"))}>New expense</Item>
               <Item value="new income" keywords="add salary money" icon={Plus} onSelect={run(() => openQuickCapture("income"))}>New income</Item>
               <Item value="new document" keywords="create note workspace" icon={FilePlus2} onSelect={create("document")}>New document</Item>
@@ -128,7 +133,7 @@ export default function CommandPalette({ onClose }) {
               <Item value="sign out log out" icon={LogOut} onSelect={run(async () => { await signOut(); navigate("/", { replace: true }); })}>Log out</Item>
             </Command.Group>
           </Command.List>
-          <div className="flex items-center justify-between border-t border-slate-100 px-4 py-2 text-[11px] text-slate-400 dark:border-white/10">
+          <div className="flex items-center justify-between border-t border-stone-100 px-4 py-2 text-[11px] text-stone-400 dark:border-white/10">
             <span>↑↓ to move · Enter to open</span>
             <span className="inline-flex items-center gap-1">Search covers tasks, documents, diagrams and transactions <ArrowRight className="h-3 w-3" /></span>
           </div>

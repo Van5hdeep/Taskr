@@ -13,7 +13,7 @@ const GO_KEYS = { h: "/home", s: "/sticker", f: "/finance", w: "/workspace", l: 
 
 const SHORTCUTS = [
   { group: "Everywhere", items: [[`${MOD} K`, "Search and commands"], ["Alt N", "Quick add (task, expense, income)"], ["?", "This list"], ["G then H / S / F / W / L", "Go to Home, Sticker, Finance, Workspace, Flow"], ["G then ,", "Settings"]] },
-  { group: "Sticker", items: [["Enter", "Add the captured task"], ["!  *  #tag", "Urgent, important, tag (in capture)"], ["D T W L K", "Daily review: done, tomorrow, next week, later, keep"]] },
+  { group: "Sticker", items: [["Enter", "Stick the sticker you typed"], ["Double-click", "Edit a sticker's text"], ["!  (in Quick add)", "Make it a red, urgent sticker"]] },
   { group: "Workspace", items: [["V T N R", "Select, text, note, shape"], ["P H E", "Pen, highlighter, eraser"], [`${MOD} Z / ${MOD} Y`, "Undo / redo"], [`${MOD} D`, "Duplicate"], [`${MOD} ] / ${MOD} [`, "Bring forward / send back"], ["Arrows (Shift)", "Nudge 1px (10px)"], ["Alt while dragging", "Turn off snapping"]] },
   { group: "Flow", items: [["Drag from a dot", "Connect blocks"], ["Double-click", "Rename a block"], ["Shift + drag", "Select several"], [`${MOD} C / V / D`, "Copy, paste, duplicate"], ["Delete", "Remove selection"]] },
 ];
@@ -24,12 +24,12 @@ function ShortcutSheet({ onClose }) {
       <div className="grid gap-6 sm:grid-cols-2">
         {SHORTCUTS.map((section) => (
           <section key={section.group}>
-            <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">{section.group}</h3>
+            <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wider text-stone-400">{section.group}</h3>
             <dl className="space-y-1.5">
               {section.items.map(([keys, label]) => (
                 <div key={label} className="flex items-center justify-between gap-3 text-sm">
-                  <dt className="text-slate-600 dark:text-slate-300">{label}</dt>
-                  <dd><kbd className="whitespace-nowrap rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[11px] text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">{keys}</kbd></dd>
+                  <dt className="text-stone-600 dark:text-stone-300">{label}</dt>
+                  <dd><kbd className="whitespace-nowrap rounded-md border border-stone-200 bg-stone-50 px-1.5 py-0.5 font-mono text-[11px] text-stone-600 dark:border-white/10 dark:bg-white/5 dark:text-stone-300">{keys}</kbd></dd>
                 </div>
               ))}
             </dl>

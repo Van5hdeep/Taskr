@@ -61,20 +61,20 @@ export function useAppTheme() {
 export function useTheme(dark) {
   return useMemo(
     () => ({
-      shell: dark ? "bg-[#0a0f24] text-slate-100" : "bg-white text-zinc-900",
+      shell: dark ? "bg-ink-950 text-stone-100" : "bg-cream-50 text-stone-900",
       card: dark
-        ? "bg-[#161f42]/80 backdrop-blur-sm border border-blue-500/20 shadow-lg shadow-blue-900/20"
-        : "bg-white border border-zinc-100 shadow-sm",
-      cardMuted: dark ? "bg-[#0d1530]/90 border border-blue-500/15" : "bg-zinc-50 border border-zinc-100",
+        ? "bg-ink-850 border border-white/[0.07] shadow-lg shadow-black/30"
+        : "bg-white border border-stone-100 shadow-sm",
+      cardMuted: dark ? "bg-ink-900 border border-white/[0.06]" : "bg-stone-50 border border-stone-100",
       input: dark
-        ? "border-blue-500/20 bg-[#161f42]/60 text-slate-100 placeholder:text-slate-500 focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30"
-        : "border-zinc-200 bg-zinc-50 text-zinc-900 placeholder:text-zinc-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100",
-      textPrimary: dark ? "text-white" : "text-zinc-900",
-      textMuted: dark ? "text-slate-400" : "text-zinc-500",
-      dropdown: dark ? "border-blue-500/20 bg-[#161f42]/95 shadow-black/50" : "border-zinc-100 bg-white shadow-zinc-200/70",
-      profileBtn: dark ? "border-blue-500/20 bg-[#161f42]/80 hover:border-blue-400/40" : "border-zinc-100 bg-white hover:border-blue-200",
-      navBtn: dark ? "border-blue-500/20 text-slate-300 hover:bg-[#161f42]/80" : "border-zinc-100 text-zinc-600 hover:bg-zinc-50",
-      authToggle: dark ? "border-blue-500/15 bg-[#0d1530]/90" : "border-zinc-100 bg-zinc-50",
+        ? "border-white/10 bg-ink-850 text-stone-100 placeholder:text-stone-500 focus:border-amber-400 focus:ring-2 focus:ring-amber-500/25"
+        : "border-stone-200 bg-stone-50 text-stone-900 placeholder:text-stone-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-100",
+      textPrimary: dark ? "text-stone-50" : "text-stone-900",
+      textMuted: dark ? "text-stone-400" : "text-stone-500",
+      dropdown: dark ? "border-white/10 bg-ink-850 shadow-black/50" : "border-stone-100 bg-white shadow-stone-200/70",
+      profileBtn: dark ? "border-white/10 bg-ink-850 hover:border-white/20" : "border-stone-100 bg-white hover:border-amber-200",
+      navBtn: dark ? "border-white/10 text-stone-300 hover:bg-ink-850" : "border-stone-100 text-stone-600 hover:bg-stone-50",
+      authToggle: dark ? "border-white/[0.07] bg-ink-900" : "border-stone-100 bg-stone-50",
     }),
     [dark]
   );

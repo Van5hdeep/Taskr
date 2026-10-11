@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import { createBrowserRouter, Navigate, RouterProvider, useNavigate } from "react-router";
-import { Loader2 } from "lucide-react";
+import { Loader2 } from "./lib/icons";
 import { AuthProvider } from "./lib/auth/AuthProvider";
 import { ProfileProvider } from "./lib/profile";
 import { RedirectIfAuthed, RequireAuth } from "./lib/auth/RequireAuth";
@@ -22,13 +22,14 @@ const DocumentPage = lazy(() => import("./features/workspace/DocumentPage"));
 const FlowsList = lazy(() => import("./features/flow/FlowsList"));
 const FlowEditorPage = lazy(() => import("./features/flow/FlowEditorPage"));
 const SettingsPage = lazy(() => import("./features/settings/SettingsPage"));
+const HelpPage = lazy(() => import("./features/help/HelpPage"));
 const DevPlayground = import.meta.env.DEV ? lazy(() => import("./features/workspace/DevPlayground")) : null;
 const DevFlowPlayground = import.meta.env.DEV ? lazy(() => import("./features/flow/DevFlowPlayground")) : null;
 const DevOverlaysPlayground = import.meta.env.DEV ? lazy(() => import("./app/DevOverlaysPlayground")) : null;
 
 function RouteFallback() {
   return (
-    <div className="flex min-h-[60vh] items-center justify-center gap-3 text-sm font-semibold text-blue-500">
+    <div className="flex min-h-[60vh] items-center justify-center gap-3 text-sm font-semibold text-amber-500">
       <Loader2 className="h-5 w-5 animate-spin" /> Loading…
     </div>
   );
@@ -77,7 +78,8 @@ const router = createBrowserRouter([
           { path: "/workspace/:docId", element: withSuspense(DocumentPage), errorElement: <RouteError /> },
           { path: "/flow", element: withSuspense(FlowsList), errorElement: <RouteError /> },
           { path: "/flow/:flowId", element: withSuspense(FlowEditorPage), errorElement: <RouteError /> },
-          { path: "/settings", element: withSuspense(SettingsPage), errorElement: <RouteError /> },
+          { path: "/help", element: withSuspense(HelpPage), errorElement: <RouteError /> },
+          { path: "/settings/:section?", element: withSuspense(SettingsPage), errorElement: <RouteError /> },
         ],
       },
     ],

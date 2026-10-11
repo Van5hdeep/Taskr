@@ -1,35 +1,53 @@
-export const STICKER_COLORS = [
-  { id: "yellow", label: "Yellow", hex: "#eab308", card: "bg-yellow-100 text-yellow-950 border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-100 dark:border-yellow-700/50", stripe: "bg-yellow-400" },
-  { id: "red", label: "Red", hex: "#ef4444", card: "bg-red-100 text-red-950 border-red-300 dark:bg-red-900/40 dark:text-red-100 dark:border-red-700/50", stripe: "bg-red-500" },
-  { id: "orange", label: "Orange", hex: "#f97316", card: "bg-orange-100 text-orange-950 border-orange-300 dark:bg-orange-900/40 dark:text-orange-100 dark:border-orange-700/50", stripe: "bg-orange-500" },
-  { id: "green", label: "Green", hex: "#16a34a", card: "bg-green-100 text-green-950 border-green-300 dark:bg-green-900/40 dark:text-green-100 dark:border-green-700/50", stripe: "bg-green-500" },
-  { id: "blue", label: "Blue", hex: "#2563eb", card: "bg-blue-100 text-blue-950 border-blue-300 dark:bg-blue-900/40 dark:text-blue-100 dark:border-blue-700/50", stripe: "bg-blue-500" },
-  { id: "purple", label: "Purple", hex: "#8b5cf6", card: "bg-purple-100 text-purple-950 border-purple-300 dark:bg-purple-900/40 dark:text-purple-100 dark:border-purple-700/50", stripe: "bg-purple-500" },
-  { id: "pink", label: "Pink", hex: "#ec4899", card: "bg-pink-100 text-pink-950 border-pink-300 dark:bg-pink-900/40 dark:text-pink-100 dark:border-pink-700/50", stripe: "bg-pink-500" },
-  { id: "grey", label: "Grey", hex: "#64748b", card: "bg-slate-100 text-slate-900 border-slate-300 dark:bg-slate-800/60 dark:text-slate-100 dark:border-slate-600/50", stripe: "bg-slate-500" },
-  { id: "white", label: "White", hex: "#f8fafc", card: "bg-white text-zinc-900 border-zinc-200 dark:bg-[#161f42] dark:text-slate-100 dark:border-blue-500/20", stripe: "bg-zinc-300" },
+import { quadrantOf } from "./logic";
+
+/**
+ * A sticker's colour is its urgency. The urgent/important flags are kept in
+ * step so Home and search (which read the flags) agree with the board.
+ */
+export const URGENCY = [
+  {
+    id: "red",
+    label: "Urgent",
+    hint: "Do it now",
+    flags: { isUrgent: true, isImportant: true },
+    dot: "bg-red-500",
+    card: "bg-red-50 border-red-200 text-red-950 dark:bg-red-500/[0.12] dark:border-red-400/25 dark:text-red-50",
+    tape: "bg-red-500",
+    chip: "bg-red-500/10 text-red-700 ring-red-500/30 dark:text-red-300",
+  },
+  {
+    id: "blue",
+    label: "Soon",
+    hint: "A little urgent",
+    flags: { isUrgent: false, isImportant: true },
+    dot: "bg-blue-500",
+    card: "bg-blue-50 border-blue-200 text-blue-950 dark:bg-blue-500/[0.12] dark:border-blue-400/25 dark:text-blue-50",
+    tape: "bg-blue-500",
+    chip: "bg-blue-500/10 text-blue-700 ring-blue-500/30 dark:text-blue-300",
+  },
+  {
+    id: "green",
+    label: "Can wait",
+    hint: "No rush",
+    flags: { isUrgent: false, isImportant: false },
+    dot: "bg-emerald-500",
+    card: "bg-emerald-50 border-emerald-200 text-emerald-950 dark:bg-emerald-500/[0.12] dark:border-emerald-400/25 dark:text-emerald-50",
+    tape: "bg-emerald-500",
+    chip: "bg-emerald-500/10 text-emerald-700 ring-emerald-500/30 dark:text-emerald-300",
+  },
 ];
 
-export function colorMeta(colorId) {
-  return STICKER_COLORS.find((color) => color.id === colorId) ?? STICKER_COLORS[0];
+export const urgencyMeta = (id) => URGENCY.find((item) => item.id === id) ?? URGENCY[2];
+
+/** Urgency of any task, including ones made before stickers were colour-coded. */
+export function urgencyOf(task) {
+  if (URGENCY.some((item) => item.id === task.color)) return task.color;
+  const quadrant = quadrantOf(task);
+  return quadrant === "do" ? "red" : quadrant === "later" ? "green" : "blue";
 }
 
-export const VIEWS = [
-  { id: "matrix", label: "Matrix" },
-  { id: "free", label: "Board" },
-  { id: "list", label: "List" },
-];
+/** Task fields for a sticker of this urgency. */
+export const urgencyFields = (id) => ({ color: urgencyMeta(id).id, ...urgencyMeta(id).flags });
 
-export const DUE_FILTERS = [
-  { id: "all", label: "Any date" },
-  { id: "overdue", label: "Overdue" },
-  { id: "today", label: "Today" },
-  { id: "week", label: "Next 7 days" },
-  { id: "none", label: "No date" },
-];
-
-export const STATUS_FILTERS = [
-  { id: "open", label: "Open" },
-  { id: "done", label: "Done" },
-  { id: "archived", label: "Archived" },
-];
+/** How long a checked-off sticker stays on the Done board. */
+export const DONE_TTL_MS = 24 * 60 * 60 * 1000;

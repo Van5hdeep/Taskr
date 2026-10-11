@@ -7,9 +7,9 @@ const live = (elements) => elements.filter((element) => !element.isDeleted);
 const signatureOf = (elements) => JSON.stringify(live(elements).map((element) => [element.id, element.version]));
 
 /**
- * Excalidraw powers the handwriting layer only: its UI is hidden and TASKR's
+ * Excalidraw powers the handwriting layer only: its UI is hidden and taskr's
  * toolbar drives it. Elements live in document coordinates, so one canvas
- * spans every page. Finished strokes are committed to TASKR's history, which
+ * spans every page. Finished strokes are committed to taskr's history, which
  * also owns undo/redo.
  */
 export default function InkLayer({ elements, onCommit, tool, color, width, zoom, documentHeight, locked }) {

@@ -1,5 +1,5 @@
 import { NavLink, Navigate, useParams } from "react-router";
-import { Loader2, WalletCards } from "lucide-react";
+import { Loader2 } from "../../lib/icons";
 import StatusBanner from "../../components/ui/StatusBanner";
 import { FinanceProvider, useFinance } from "./FinanceStore";
 import LocalImportBanner from "./components/LocalImportBanner";
@@ -11,30 +11,32 @@ import GoalsTab from "./tabs/GoalsTab";
 import InvestmentsTab from "./tabs/InvestmentsTab";
 import AccountsTab from "./tabs/AccountsTab";
 
+// Plain-language names, each with one line saying what the tab is for.
 const TABS = [
-  { id: "overview", label: "Overview", component: OverviewTab },
-  { id: "transactions", label: "Transactions", component: TransactionsTab },
-  { id: "budgets", label: "Budgets", component: BudgetsTab },
-  { id: "bills", label: "Bills & subscriptions", component: BillsTab },
-  { id: "goals", label: "Goals", component: GoalsTab },
-  { id: "investments", label: "Investments", component: InvestmentsTab },
-  { id: "accounts", label: "Accounts", component: AccountsTab },
+  { id: "overview", label: "Summary", about: "This month at a glance: what came in, what went out, and what you can still spend.", component: OverviewTab },
+  { id: "transactions", label: "Money in & out", about: "Everything you earn or spend. Add one with the button, or import a bank statement (CSV).", component: TransactionsTab },
+  { id: "budgets", label: "Budgets", about: "Set a monthly limit for a category (like Food) and see how much is left.", component: BudgetsTab },
+  { id: "bills", label: "Bills", about: "Rent, subscriptions and EMIs that repeat. Mark them paid when they're paid.", component: BillsTab },
+  { id: "goals", label: "Savings goals", about: "Something you're saving for. Set a target and taskr shows the monthly amount needed.", component: GoalsTab },
+  { id: "investments", label: "Investments", about: "Mutual funds, stocks, FDs, gold… Type in today's value now and then to track growth.", component: InvestmentsTab },
+  { id: "accounts", label: "Accounts", about: "Where your money sits: bank, cash, wallet, card. Add, edit, archive or delete any of them.", component: AccountsTab },
 ];
 
 function FinanceContent({ tab }) {
   const { loading, error, reload } = useFinance();
   const Active = tab.component;
-  if (loading) return <div className="flex min-h-[40vh] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-blue-500" /></div>;
+  if (loading) return <div className="flex min-h-[40vh] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-amber-500" /></div>;
   if (error) {
     return (
       <div>
         <StatusBanner message={error} />
-        <button type="button" onClick={reload} className="text-sm font-semibold text-blue-600 hover:underline">Try again</button>
+        <button type="button" onClick={reload} className="text-sm font-semibold text-amber-700 hover:underline">Try again</button>
       </div>
     );
   }
   return (
     <div className="space-y-5">
+      <p className="text-sm text-stone-500 dark:text-stone-400 print:hidden">{tab.about}</p>
       <LocalImportBanner />
       <Active />
     </div>
@@ -49,20 +51,17 @@ export default function FinancePage() {
   return (
     <FinanceProvider>
       <main className="mx-auto w-full max-w-[1400px] px-4 py-6 pb-28 sm:px-6 lg:px-8">
-        <header className="mb-5 flex items-center gap-3 print:hidden">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600/10 text-blue-600 dark:text-blue-300"><WalletCards className="h-5 w-5" /></span>
-          <div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Finance</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Where your money is, what's coming, and what's safe to spend.</p>
-          </div>
+        <header className="mb-5 print:hidden">
+          <h1 className="font-brand text-2xl font-semibold tracking-[-0.03em] text-stone-900 dark:text-white">Finance</h1>
+          <p className="text-sm text-stone-500 dark:text-stone-400">Where your money is, what's coming, and what's safe to spend.</p>
         </header>
-        <nav className="mb-6 flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-white/10 print:hidden" aria-label="Finance sections">
+        <nav className="mb-6 flex gap-1 overflow-x-auto border-b border-stone-200 dark:border-white/10 print:hidden" aria-label="Finance sections">
           {TABS.map((item) => (
             <NavLink
               key={item.id}
               to={item.id === "overview" ? "/finance" : `/finance/${item.id}`}
               end
-              className={({ isActive }) => `whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-semibold transition-colors ${isActive ? "border-blue-600 text-blue-700 dark:text-blue-300" : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"}`}
+              className={({ isActive }) => `whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-semibold transition-colors ${isActive ? "border-amber-600 text-amber-800 dark:text-amber-300" : "border-transparent text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200"}`}
             >
               {item.label}
             </NavLink>

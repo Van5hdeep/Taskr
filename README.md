@@ -1,110 +1,244 @@
 <p align="center">
-  <img src="/TASKR.png" alt="TASKR Logo" width="160" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/logo-dark.svg">
+    <img src="docs/images/logo-light.svg" alt="taskr" width="300">
+  </picture>
 </p>
 
-<h1 align="center">TASKR</h1>
-<p align="center"><strong>DO IT FASTER WITH TASKR</strong></p>
+<p align="center"><strong>do it fastr with taskr</strong></p>
+
+<p align="center">
+  Stickers, money, notes and flows in one calm place.<br>
+  A to-do board, a personal finance tracker, A4 note pages and a diagram editor — signed in once, saved automatically.
+</p>
+
+<p align="center">
+  <img alt="React 19" src="https://img.shields.io/badge/React-19-1c1b19?logo=react&logoColor=ffc71d">
+  <img alt="Vite 7" src="https://img.shields.io/badge/Vite-7-1c1b19?logo=vite&logoColor=ffc71d">
+  <img alt="Tailwind CSS 4" src="https://img.shields.io/badge/Tailwind_CSS-4-1c1b19?logo=tailwindcss&logoColor=ffc71d">
+  <img alt="Supabase" src="https://img.shields.io/badge/Supabase-auth_%2B_Postgres-1c1b19?logo=supabase&logoColor=ffc71d">
+</p>
+
+<p align="center">
+  <img src="docs/images/landing-hero.png" alt="The taskr landing page: the Quad logo and the taskr wordmark on a warm cream background" width="900">
+</p>
 
 ---
 
-## Architectural Deep Dive & Core Features
+## What's inside
 
-### 1. The Task Dump Upload Pipeline
-The primary interface for workspace ingestion is the **Task Dump**. This input subsystem allows users to rapid-fire raw text data without worrying about initial structure. 
-* **State Operations:** When the user triggers "Upload Task", the interface dynamically shifts state to read "Uploading task...". This blocks UI interactions, defaults fallback parameters, and communicates asynchronously with external relational layers.
-* **Pre-Saving Subtask System:** Before initializing the upload stream, the container provides an interface layout to manually append structured, nested subtasks to a temporary array.
-* **Default Structure Fallback:** If a task description is submitted with no subtasks defined, a structural safety interceptor injects a default subtask schema labeled `[{ text: "Task over", completed: false }]` to guarantee data type uniformity across the relational backend.
+taskr is four everyday tools that share one account, one search and one look.
 
-### 2. Context-Aware Task Stickers & In-Line Editing
-Tasks are displayed inside a modular grid as interactive sticker cards. The visual hierarchy relies on intuitive spatial signals rather than stressful data overhead.
-* **Simplified Urgency Language:** TASKR completely removes intimidating raw numeric scores (e.g., "9/10 urgency"). Priority is signaled entirely through soft modern pastel card surfaces mapped to an accessible, crisp vocabulary: High Urgency displays as a pastel red card labeled **Urgent**, Medium Urgency displays as a pastel amber card labeled **Important**, and Low Urgency transitions to a pastel green card surface labeled **Not Important**.
-* **Inline Local Modification Engine:** Positioned directly beside the deletion vector is a precision-mapped pencil interface. Activating this node toggles local template literals into fully editable input text configurations. Users can dynamically modify descriptions, update titles, or shift urgency tags.
-* **Integrated Modal Alerts:** To replace non-cohesive native browser confirmation popups, TASKR utilizes an internal Application Modal subsystem. When a user marks the final nested subtask complete, an inline callback intercepts the operation and renders a premium theme-compliant confirmation modal asking to clear the card.
+| | Tool | What it's for |
+|---|---|---|
+| 🟥🟦🟩 | **Sticker** | One board for everything on your mind. Colour a sticker by urgency, drag it anywhere, check it off. |
+| 💰 | **Finance** | Accounts, money in and out, budgets, bills, savings goals and investments — and what's safe to spend. |
+| 📝 | **Workspace** | A4 pages you can type, handwrite, highlight and fill with tables, shapes, notes and images. |
+| 🔀 | **Flow** | A diagram canvas: drag blocks, connect them, tidy the layout, export it. |
 
-### 3. The Real-Time Consistency Board
-The historical contribution grids common in dev tools have been replaced by a real-time **Consistency Board**. This tracking scale operates as a direct mathematical reflection of the user's active visible workspace state.
-* **Proportional Execution Formula:** The mathematical position of the tracking marker is calculated dynamically using the active array length:
-  $$\text{Reliability Score} = \frac{\text{Completed Visible Tasks}}{\text{Total Visible Tasks}}$$
-* **Dynamic Alignment Mechanics:** If a user has exactly five tasks loaded on the dashboard, completing one task shifts the indicator element precisely 1/5th (20%) across the scale layout. Conversely, uploading a new, uncompleted task instantly dilutes the success ratio and slides the marker back to preserve mathematical precision.
-* **Shifting State Indicators:** The score range ($0.0$ to $1.0$) drives a horizontal container width configuration, updating the indicator's face state instantly:
-  * Score < 0.3: 🥲 (Struggling) | Score 0.3 - 0.59: 😐 (Neutral) | Score 0.6 - 0.79: 😁 (Happy) | Score >= 0.8: 😃 (Excellent)
+Around them sit a **Home** dashboard, a **command palette** (<kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>K</kbd>), **quick add** (<kbd>Alt</kbd> + <kbd>N</kbd>), **links** between items, a **Help & support** centre and **Settings**.
 
-### 4. Interactive Monthly Calendar Matrix
-To provide deep chronological clarity, TASKR embeds a comprehensive monthly calendar grid mapping task allocations visually.
-* **Defensive Anti-Crash Architecture:** To prevent fatal React rendering failures ("White Screen of Death") caused by empty or volatile database strings, the cell parser uses a type-safe optional chaining evaluation hook: `task?.deadline ? new Date(task.deadline).toISOString().split('T')[0] : ''`.
-* **Visual Task Mapping:** Valid scheduled items are filtered and mapped straight onto their corresponding day cell blocks as clean, horizontal task pills.
+### Sticker — every task on one board
 
-### 5. High-Fidelity Notification and Time Engines
-TASKR features advanced chronometer checking, separating time warning systems from card components into a top-right mounted notification engine powered by a managed event loop.
-* **Synchronized Audio Chime:** Every visual alert is bound to a native browser audio utility executing a clean, non-intrusive digital chime at a calibrated volume level (`0.4`).
-* **High-Fidelity Threshold Notifications:** Utilizing local storage identifiers to block duplicate alerts during re-renders, the notification loop monitors deadlines to throw real-time alerts for Half-Time Milestones and 1-Hour Final Notices.
-* **Overtime Grace Window and Death Clock:** The moment a deadline timestamp is breached, the card card shifts to a high-contrast blinking warning state reading **OVERTIME**. It starts a hard 24-hour countdown. If the task is not completed or erased before the 24 hours expire, an automated background execution purges the record from the database.
+<img src="docs/images/feature-sticker.png" alt="Sticker board demo: red, blue and green stickers on a dotted board" width="900">
 
-### 6. Sticker Matrix
-The Sticker Matrix is a clean white wall for visual task planning.
-* **Color-Coded Stickers:** Users can choose visible primary and supporting colors before adding a task.
-* **Direct Manipulation:** Stickers can be selected, dragged, resized, edited, and deleted directly on the matrix.
-* **Focused Workflow:** The matrix keeps the board centered on the tasks themselves, without an in-canvas assistant or background grid.
+- **Colour is urgency:** red = urgent, blue = soon, green = can wait.
+- Drag stickers anywhere; double-click to edit; **Tidy up** lines them up, most urgent first.
+- **Done** moves a sticker to the **Done board** (toggle at the top). Done stickers stay for 24 hours, then clear themselves — or **Put back** if you finished one by mistake.
+- Optional due dates; overdue stickers are flagged. Quick add understands `!` for urgent and natural dates (“tomorrow 5pm”).
 
----
+### Finance — know what's safe to spend
 
-## Technical Infrastructure
+<img src="docs/images/feature-finance.png" alt="Finance demo: safe-to-spend amount, a spending trend line and budget bars" width="900">
 
-| Technical Vector | Technologies Used | Description & Operational Scope |
-| :--- | :--- | :--- |
-| **Frontend Core** | React 18, Vite | Powers the reactive component tree, virtual DOM rendering, and hot-module reloading. |
-| **Styling Architecture**| Tailwind CSS | Handles modern utility-first fluid design layouts, responsive viewports, and custom layouts. |
-| **Database & Auth Backend**| Supabase | Cloud relational infrastructure handling secure sessions, user isolation constraints, and real-time JSONB mutations. |
-| **Notification Engine** | Sonner | Orchestrates high-fidelity, standalone top-right toast alerts synchronized with the audio chime utility. |
-| **Animation Layers** | ClickSpark (HTML5 Canvas) | Inline interactive component rendering localized particle explosions on mouse tap. |
-| **Icons & Vectors** | Lucide React | Provides the clean interface visual indicators (Pencil, Trash, Alerts). |
-| **Development IDE** | Cursor | Development editor used for structural layout tracking and logical code generation. |
-| **Runtime Environment**| Antigravity | Core presentation host container executing real-time full-stack build deployment. |
+- **Summary:** this month's income, spending and the amount that's safe to spend after bills and goals.
+- **Money in & out:** fast entry, search and filters, transfers between accounts, and **CSV import** from a bank statement (duplicates skipped).
+- **Budgets** per category, **Bills** that repeat (mark paid / skip), **Savings goals** with the monthly amount needed, **Investments** with value history.
+- Nothing is fixed: every account, category, budget, bill, goal and investment can be edited, archived or deleted.
 
----
+### Workspace — pages for thinking out loud
 
-### 🗄️ Database Schema Architecture
-TASKR utilizes a high-performance relational Supabase instance optimized for structural query efficiency and real-time state manipulation. The system relies on a single-table core schema mapped with strict constraints:
+<img src="docs/images/feature-notes.png" alt="Workspace demo: an A4 page with lines, a highlight, handwriting and a small table" width="900">
 
-| Column Field | Data Type | Default / Constraints | Operational Purpose |
-| :--- | :--- | :--- | :--- |
-| `id` | `UUID` | `gen_random_uuid() / PRIMARY KEY` | Global unique identifier for individual task blocks. |
-| `user_id` | `UUID` | `auth.users(id) / REFERENCES / NOT NULL` | Multi-tenant isolation anchor securely tracking owner state. |
-| `title` | `TEXT` | `NOT NULL` | The concise textual identifier for an individual task. |
-| `description` | `TEXT` | `Nullable` | Deep narrative input provided by the raw user task stream dump. |
-| `urgency_label` | `TEXT` | `'Important' / CHECK IN ('Urgent', 'Important', 'Not Important')` | Core color-mapped metric framework replacing friction-heavy raw numbers. |
-| `is_completed` | `BOOLEAN` | `false` | Global completion state tracker feeding the live Consistency Board. |
-| `sub_tasks` | `JSONB` | `'[]'::jsonb` | Nested array structure accommodating modular dynamic checklist maps. |
-| `deadline` | `TIMESTAMPTZ`| `Nullable` | Target timestamp tracking threshold alerts and Overtime death clocks. |
-| `created_at` | `TIMESTAMPTZ`| `timezone('utc'::text, now()) / NOT NULL` | Base initialization marker used to calculate the 50% half-time warning scale. |
+- A4 pages with lined, grid, dotted or plain backgrounds.
+- **Pen and highlighter** (Excalidraw ink), rich **text boxes** (Tiptap), **tables** whose rows grow as you type, **shapes** drawn in their true form, sticky **notes** and **images** (upload, paste or drop).
+- Undo/redo, snapping guides, multi-select, alignment, autosave with conflict detection, and **PDF / PNG export**.
 
-*Row Level Security (RLS) is explicitly enabled on this schema. All read, write, update, and batch deletion vectors are strictly bounded by user-isolation data policies (`auth.uid() = user_id`).*
+### Flow — map it out, then ship it
+
+<img src="docs/images/flow-editor.png" alt="The Flow editor: a flowchart with start, process, decision and done blocks" width="900">
+
+- Drag blocks (process, decision, data, document, swimlane…) and connect them from their dots.
+- **Tidy up** arranges the diagram automatically; templates get you started.
+- Import and export **Mermaid**, export **PNG / SVG / PDF**.
+
+### Signing in
+
+<img src="docs/images/sign-in.png" alt="The sign-in page: a dark panel with an animation on the left and the sign-in form on the right" width="900">
+
+Email and password, Google, or **try it as a guest** in one click (add an email later in Settings to keep your work). A short animation confirms every successful sign-in or sign-up before the app slides in.
+
+<img src="docs/images/catchphrase.png" alt="do it fastr with taskr" width="900">
 
 ---
 
-### 🔑 Hackathon Evaluation & Pre-Loaded Judge Profiles
-To ensure an optimal, friction-free evaluation run during presentation judging, TASKR bypasses arbitrary registration steps by pre-seeding the database and client-side code configuration with dedicated evaluation profiles. 
+## Tech stack
 
-The login panel interface comes fully integrated with pre-loaded mock data and automated task timelines to show off the countdown sound chimes and the live calendar matrices out-of-the-box:
-
-* **Judge Testing Account Identity:** `judge12@gmail.com`
-* **Secure Access Key:** `judge123`
-
-*Selecting this profile automatically initializes a curated dashboard layout pre-populated with interactive tasks spanning multi-tier urgency categories, operational checklist matrices, and active countdown targets.*
+| Area | Built with |
+|---|---|
+| App | React 19, React Router 7, Vite 7 |
+| Styling | Tailwind CSS 4 · Sora, DM Sans and Instrument Serif fonts |
+| Data & auth | Supabase — Postgres with row-level security, Auth (email, Google, anonymous guests), Storage for images |
+| Workspace | Excalidraw (ink), Tiptap (rich text), html-to-image (export) |
+| Flow | React Flow (`@xyflow/react`), dagre (auto layout) |
+| Motion | anime.js (scroll-synced landing animations), Lenis (smooth scrolling), LottieFiles player |
+| UI | Phosphor icons, Sonner toasts, cmdk command palette |
+| Tests | Vitest |
+| Hosting | Firebase Hosting via GitHub Actions |
 
 ---
 
-## Installation & Local Deployment
+## Getting started
+
+### 1. Prerequisites
+
+- **Node.js 20.19+** (or 22+) and npm
+- A **Supabase** project (the free tier is fine)
+
+### 2. Install
 
 ```bash
-# Clone the workspace repository
-git clone https://github.com/your-repository/taskr.git
-cd taskr
-
-# Install dependencies
+git clone https://github.com/Van5hdeep/Task-tracker.git
+cd Task-tracker
 npm install
-npm install sonner
+```
 
-# Launch the development server
+### 3. Environment variables
+
+Copy the example file and fill in your Supabase project's values (Supabase dashboard → **Project Settings → API**):
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Used by | Notes |
+|---|---|---|
+| `VITE_SUPABASE_URL` | Browser app | `https://<project-ref>.supabase.co` |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Browser app | The **publishable** key (`sb_publishable_…`). Safe to ship to the browser; row-level security protects the data. Older projects can set `VITE_SUPABASE_ANON_KEY` instead. |
+| `SUPABASE_SECRET_KEY` | Not used by the app | Kept for admin scripts only. **Never** prefix it with `VITE_` and never commit it. |
+| `SUPABASE_JWKS_URL` | Not used by the app | Reference for server-side token checks. |
+
+`.env` is git-ignored; only `.env.example` is committed.
+
+### 4. Set up the database
+
+The schema, row-level security policies and the image storage bucket live in [`supabase/migrations`](supabase/migrations). Apply them with the Supabase CLI (installed as a dev dependency):
+
+```bash
+npx supabase login
+npx supabase link --project-ref <your-project-ref>
+npm run db:push
+```
+
+Then, in the Supabase dashboard → **Authentication**:
+
+- **Sign In / Providers → Anonymous sign-ins: on** (needed for “Try it as a guest”).
+- **URL Configuration:** add `http://localhost:5173/**` (and your deployed URL) to the redirect URLs.
+- *Optional:* enable **Google** and **Confirm email** for production.
+
+### 5. Run it
+
+```bash
 npm run dev
 ```
+
+Open <http://localhost:5173>.
+
+---
+
+## Scripts
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Start the dev server |
+| `npm run build` | Type-check and build to `dist/` |
+| `npm run preview` | Serve the production build locally |
+| `npm test` | Run the unit tests once (`npm run test:watch` to keep watching) |
+| `npm run db:push` | Apply database migrations to the linked Supabase project |
+| `npm run db:types` | Generate `src/lib/database.types.ts` from the linked project |
+| `node scripts/build-catchphrase.mjs` | Regenerate the landing page's drawn catchphrase outlines |
+| `node scripts/build-readme-logo.mjs` | Regenerate the README logo SVGs |
+
+---
+
+## Keyboard shortcuts
+
+| Keys | Action |
+|---|---|
+| <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>K</kbd> | Search and commands |
+| <kbd>Alt</kbd> + <kbd>N</kbd> | Quick add (sticker, expense or income) |
+| <kbd>?</kbd> | All shortcuts |
+| <kbd>G</kbd> then <kbd>H</kbd> / <kbd>S</kbd> / <kbd>F</kbd> / <kbd>W</kbd> / <kbd>L</kbd> | Go to Home, Sticker, Finance, Workspace, Flow |
+| <kbd>V</kbd> <kbd>T</kbd> <kbd>N</kbd> <kbd>R</kbd> · <kbd>P</kbd> <kbd>H</kbd> <kbd>E</kbd> | Workspace: select, text, note, shape · pen, highlighter, eraser |
+
+---
+
+## Project structure
+
+```
+src/
+├─ app/                 App shell (sidebar), command palette, quick capture, global shortcuts
+├─ components/
+│  ├─ landing/          Landing page, scroll animations, feature demos, catchphrase outlines
+│  ├─ ui/               Shared UI: dialogs, modals, loaders, Lottie player
+│  └─ BrandLogo.jsx     The Quad mark and wordmark
+├─ features/
+│  ├─ auth/             Sign in / sign up / reset, success animation, OAuth callback
+│  ├─ home/             Dashboard
+│  ├─ sticker/          Sticker board
+│  ├─ finance/          Finance tabs, calculations (tested), CSV import
+│  ├─ workspace/        Documents list and A4 editor
+│  ├─ flow/             Diagrams list and React Flow editor, Mermaid import/export
+│  ├─ help/             Help & support centre
+│  └─ settings/         User, appearance, account, privacy, about, reset
+├─ lib/                 Supabase client, auth, profile, theme, autosave, icon set
+└─ index.css            Theme tokens (cream / charcoal / sunflower) and motion
+supabase/migrations/    Database schema and row-level security
+design/logo/            Logo exploration (the six options and the chosen Quad)
+scripts/                Asset generators
+docs/images/            README images
+```
+
+---
+
+## Your data and privacy
+
+- Every table is protected by **row-level security**: each request can only read and write the signed-in user's own rows.
+- Workspace images live in a **private** storage bucket and are shown through short-lived signed links.
+- No analytics, ad trackers or AI services. Settings → **Privacy** downloads everything as JSON; Settings → **Reset** deletes it all.
+
+---
+
+## Deployment
+
+The GitHub Actions workflows in [`.github/workflows`](.github/workflows) build the app and deploy it to **Firebase Hosting**: pull requests get a preview channel, and pushes to `main` go live.
+
+Before the first deploy, add these **repository secrets** (GitHub → Settings → Secrets and variables → Actions):
+
+| Secret | Value |
+|---|---|
+| `VITE_SUPABASE_URL` | Your production Supabase URL |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Your production publishable key |
+| `FIREBASE_SERVICE_ACCOUNT_TASKR_WORKSPACE` | Firebase service account JSON (created by `firebase init hosting:github`) |
+
+Also add the deployed URL to Supabase **Authentication → URL Configuration**.
+
+---
+
+## Credits
+
+- **Logo, colours and UI** — designed for taskr (see [`design/logo`](design/logo)).
+- **Animation** — “Rolling Cubes” by Sanjib Paul, from [LottieFiles](https://lottiefiles.com/free-animation/rolling-cubes-WXrwwxymYB) (free animation).
+- **Icons** — [Phosphor Icons](https://phosphoricons.com) (MIT).
+- **Fonts** — [Sora](https://fonts.google.com/specimen/Sora), [DM Sans](https://fonts.google.com/specimen/DM+Sans) and [Instrument Serif](https://fonts.google.com/specimen/Instrument+Serif) (SIL Open Font License).
+- **Libraries** — anime.js, Lenis, React Flow, Excalidraw, Tiptap, Supabase and the rest listed in `package.json`.

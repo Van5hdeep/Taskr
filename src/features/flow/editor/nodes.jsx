@@ -41,12 +41,12 @@ function EditableLabel({ id, label, className = "", align = "center" }) {
           if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); finish(); }
           if (event.key === "Escape") { event.preventDefault(); setDraft(label); setEditingId(null); }
         }}
-        className={`nodrag nowheel relative z-10 w-[90%] resize-none rounded-md border border-blue-400 bg-white px-2 py-1 text-xs font-semibold text-slate-800 outline-none ring-2 ring-blue-100 ${align === "left" ? "text-left" : "text-center"}`}
+        className={`nodrag nowheel relative z-10 w-[90%] resize-none rounded-md border border-amber-400 bg-white px-2 py-1 text-xs font-semibold text-stone-800 outline-none ring-2 ring-amber-100 ${align === "left" ? "text-left" : "text-center"}`}
         aria-label="Node label"
       />
     );
   }
-  return <span className={`relative z-10 whitespace-pre-line px-3 text-xs font-semibold leading-5 text-slate-800 ${align === "left" ? "text-left" : "text-center"} ${className}`}>{label}</span>;
+  return <span className={`relative z-10 whitespace-pre-line px-3 text-xs font-semibold leading-5 text-stone-800 ${align === "left" ? "text-left" : "text-center"} ${className}`}>{label}</span>;
 }
 
 // Each side has a source and a target handle with the same id, so a
@@ -103,7 +103,7 @@ export const ShapeNode = memo(function ShapeNode({ id, data, selected }) {
 
   return (
     <div className="h-full w-full" onDoubleClick={() => setEditingId(id)} title={info.label}>
-      <NodeResizer isVisible={selected} minWidth={80} minHeight={44} lineClassName="!border-blue-500" handleClassName="!h-2.5 !w-2.5 !rounded-sm !border-blue-600 !bg-white" />
+      <NodeResizer isVisible={selected} minWidth={80} minHeight={44} lineClassName="!border-amber-500" handleClassName="!h-2.5 !w-2.5 !rounded-sm !border-amber-600 !bg-white" />
       {body}
       <Handles />
     </div>
@@ -113,10 +113,10 @@ export const ShapeNode = memo(function ShapeNode({ id, data, selected }) {
 export const LaneNode = memo(function LaneNode({ id, data, selected }) {
   const { setEditingId } = useFlowEditor();
   return (
-    <div className={`h-full w-full rounded-xl border-2 border-dashed ${selected ? "border-blue-400" : "border-slate-300"} bg-slate-50/70`} onDoubleClick={() => setEditingId(id)}>
-      <NodeResizer isVisible={selected} minWidth={360} minHeight={100} lineClassName="!border-blue-500" handleClassName="!h-2.5 !w-2.5 !rounded-sm !border-blue-600 !bg-white" />
-      <div className="flex h-full w-[140px] items-center border-r border-dashed border-slate-300 px-4">
-        <span className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500"><EditableLabel id={id} label={data.label} align="left" className="!px-0" /></span>
+    <div className={`h-full w-full rounded-xl border-2 border-dashed ${selected ? "border-amber-400" : "border-stone-300"} bg-stone-50/70`} onDoubleClick={() => setEditingId(id)}>
+      <NodeResizer isVisible={selected} minWidth={360} minHeight={100} lineClassName="!border-amber-500" handleClassName="!h-2.5 !w-2.5 !rounded-sm !border-amber-600 !bg-white" />
+      <div className="flex h-full w-[140px] items-center border-r border-dashed border-stone-300 px-4">
+        <span className="text-xs font-bold uppercase tracking-[0.14em] text-stone-500"><EditableLabel id={id} label={data.label} align="left" className="!px-0" /></span>
       </div>
     </div>
   );

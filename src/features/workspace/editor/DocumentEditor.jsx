@@ -4,7 +4,7 @@ import {
   ArrowDown, ArrowUp, BringToFront, ChevronDown, ChevronLeft, ChevronRight, Copy, Download, Eraser, FileImage, FileText,
   Grid3x3, Highlighter, Image as ImageIcon, Loader2, Lock, Maximize2, Minus, MousePointer2, PenLine, Plus, Printer, Redo,
   SendToBack, Shapes, StickyNote, Trash2, Type, Undo, Unlock,
-} from "lucide-react";
+} from "../../../lib/icons";
 import { toast } from "sonner";
 import { useConfirm } from "../../../components/ui/ConfirmDialog";
 import { formatSupabaseError } from "../../../lib/supabase";
@@ -45,7 +45,7 @@ const isTypingTarget = (element) => element && (["INPUT", "TEXTAREA", "SELECT"].
 
 function ToolButton({ active, onClick, title, children, disabled }) {
   return (
-    <button type="button" onClick={onClick} title={title} aria-label={title} aria-pressed={active} disabled={disabled} className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors disabled:opacity-40 ${active ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
+    <button type="button" onClick={onClick} title={title} aria-label={title} aria-pressed={active} disabled={disabled} className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors disabled:opacity-40 ${active ? "bg-stone-900 dark:bg-amber-400 dark:text-stone-900 text-white shadow-sm" : "text-stone-600 hover:bg-stone-100"}`}>
       {children}
     </button>
   );
@@ -59,19 +59,19 @@ function Menu({ open, onClose, children, align = "left", width = "w-56" }) {
     return () => document.removeEventListener("pointerdown", close);
   }, [open, onClose]);
   if (!open) return null;
-  return <div data-menu className={`absolute top-full z-[80] mt-1 ${width} rounded-xl border border-slate-200 bg-white p-2 shadow-xl ${align === "right" ? "right-0" : "left-0"}`}>{children}</div>;
+  return <div data-menu className={`absolute top-full z-[80] mt-1 ${width} rounded-xl border border-stone-200 bg-white p-2 shadow-xl ${align === "right" ? "right-0" : "left-0"}`}>{children}</div>;
 }
 
 function GridPicker({ onPick }) {
   const [hover, setHover] = useState({ r: 0, c: 0 });
   return (
     <div>
-      <p className="mb-2 text-xs font-semibold text-slate-500">{hover.r ? `${hover.r} × ${hover.c} table` : "Choose size"}</p>
+      <p className="mb-2 text-xs font-semibold text-stone-500">{hover.r ? `${hover.r} × ${hover.c} table` : "Choose size"}</p>
       <div className="grid gap-[3px]" style={{ gridTemplateColumns: "repeat(8, 1fr)" }} onMouseLeave={() => setHover({ r: 0, c: 0 })}>
         {Array.from({ length: 64 }, (_, i) => {
           const r = Math.floor(i / 8) + 1;
           const c = (i % 8) + 1;
-          return <button key={i} type="button" aria-label={`${r} by ${c}`} onMouseEnter={() => setHover({ r, c })} onClick={() => onPick(r, c)} className={`h-5 w-5 rounded-sm border ${r <= hover.r && c <= hover.c ? "border-blue-500 bg-blue-500" : "border-slate-300 bg-white"}`} />;
+          return <button key={i} type="button" aria-label={`${r} by ${c}`} onMouseEnter={() => setHover({ r, c })} onClick={() => onPick(r, c)} className={`h-5 w-5 rounded-sm border ${r <= hover.r && c <= hover.c ? "border-amber-500 bg-amber-500" : "border-stone-300 bg-white"}`} />;
         })}
       </div>
     </div>
@@ -81,13 +81,13 @@ function GridPicker({ onPick }) {
 function Swatches({ colors, value, onPick, allowNone = false }) {
   return (
     <div className="flex items-center gap-1">
-      {allowNone && <button type="button" onClick={() => onPick("transparent")} title="None" aria-label="None" className={`h-5 w-5 rounded border bg-white text-[10px] leading-none text-red-500 ${value === "transparent" ? "ring-2 ring-blue-400 ring-offset-1" : "border-slate-300"}`}>⁄</button>}
-      {colors.map((color) => <button key={color} type="button" onClick={() => onPick(color)} title={color} aria-label={color} className={`h-5 w-5 rounded border ${value === color ? "ring-2 ring-blue-400 ring-offset-1" : "border-slate-300"}`} style={{ backgroundColor: color }} />)}
+      {allowNone && <button type="button" onClick={() => onPick("transparent")} title="None" aria-label="None" className={`h-5 w-5 rounded border bg-white text-[10px] leading-none text-red-500 ${value === "transparent" ? "ring-2 ring-amber-400 ring-offset-1" : "border-stone-300"}`}>⁄</button>}
+      {colors.map((color) => <button key={color} type="button" onClick={() => onPick(color)} title={color} aria-label={color} className={`h-5 w-5 rounded border ${value === color ? "ring-2 ring-amber-400 ring-offset-1" : "border-stone-300"}`} style={{ backgroundColor: color }} />)}
     </div>
   );
 }
 
-const Divider = () => <span className="mx-1 h-6 w-px bg-slate-200" />;
+const Divider = () => <span className="mx-1 h-6 w-px bg-stone-200" />;
 
 export default function DocumentEditor({ documentId, title, content, commit, undo, redo, canUndo, canRedo, pageStyle, onPageStyleChange }) {
   const confirm = useConfirm();
@@ -259,7 +259,7 @@ export default function DocumentEditor({ documentId, title, content, commit, und
       box: unionBounds(moving),
       start: { x: block.x, y: block.y, w: block.width, h: block.height },
       targets: snapTargets(blocks.filter((item) => pageOf(item) === pageOf(block) && !ids.includes(item.id))),
-      keepRatio: block.type === "image",
+      keepRatio: block.type === "image" || (block.type === "shape" && block.shapeType === "circle"),
       moved: false,
     };
     setPreview({ type: mode, ids, dx: 0, dy: 0, rect: null, guides: [] });
@@ -303,6 +303,11 @@ export default function DocumentEditor({ documentId, title, content, commit, und
       } else if (g.type === "marquee" || g.type === "create") {
         const point = { x: g.origin.x + dx, y: g.origin.y + dy };
         g.rect = normalizeRect(g.origin.x, g.origin.y, point.x, point.y);
+        // A circle is drawn in a square box so its frame hugs the shape (Shift does the same for any shape).
+        if (g.type === "create" && tool === "shape" && (shapeType === "circle" || event.shiftKey)) {
+          const side = Math.max(g.rect.w, g.rect.h);
+          g.rect = normalizeRect(g.origin.x, g.origin.y, g.origin.x + Math.sign(dx || 1) * side, g.origin.y + Math.sign(dy || 1) * side);
+        }
         setPreview({ type: g.type, pageId: g.pageId, rect: g.rect });
       }
     };
@@ -351,7 +356,7 @@ export default function DocumentEditor({ documentId, title, content, commit, und
     let block;
     if (tool === "text") block = { id, type: "text", pageId: g.pageId, framed: false, fontSize: 16, doc: { type: "doc", content: [{ type: "paragraph" }] }, ...at({ min: 60, default: 320 }, { min: 32, default: 60 }) };
     if (tool === "table") block = { id, type: "table", pageId: g.pageId, rows: tableSize.rows, cols: tableSize.cols, headerRow: false, data: Array.from({ length: tableSize.rows }, () => Array(tableSize.cols).fill("")), fill: "transparent", stroke: "#334155", strokeWidth: 1, ...at({ min: tableSize.cols * 40, default: Math.min(A4_WIDTH - PAGE_MARGIN * 2, tableSize.cols * 110) }, { min: tableSize.rows * 24, default: tableSize.rows * 34 }) };
-    if (tool === "shape") block = { id, type: "shape", shapeType, pageId: g.pageId, fill: "transparent", stroke: "#2563eb", strokeWidth: 2, ...at({ min: 16, default: 140 }, { min: 16, default: shapeType === "line" || shapeType === "arrow" ? 40 : 100 }) };
+    if (tool === "shape") block = { id, type: "shape", shapeType, pageId: g.pageId, fill: "transparent", stroke: "#2563eb", strokeWidth: 2, ...at({ min: 16, default: shapeType === "circle" ? 100 : 140 }, { min: 16, default: shapeType === "line" || shapeType === "arrow" ? 40 : 100 }) };
     if (tool === "note") block = { id, type: "sticker", pageId: g.pageId, color: noteColor, text: "", ...at({ min: 80, default: 180 }, { min: 80, default: 180 }) };
     if (!block) return;
     block.x = Math.max(0, Math.min(A4_WIDTH - 20, block.x));
@@ -502,7 +507,7 @@ export default function DocumentEditor({ documentId, title, content, commit, und
     }
     if (block.type === "shape") {
       const rect = rectFor(block);
-      return <BlockFrame key={block.id} {...commonFrame}><ShapeContent block={block} w={rect.w} h={rect.h} /></BlockFrame>;
+      return <BlockFrame key={block.id} {...commonFrame} outline="subtle"><ShapeContent block={block} w={rect.w} h={rect.h} /></BlockFrame>;
     }
     return null;
   };
@@ -528,7 +533,7 @@ export default function DocumentEditor({ documentId, title, content, commit, und
   return (
     <div className={`flex min-h-0 flex-1 flex-col ${locked ? "workspace-locked" : ""}`}>
       {/* Primary toolbar */}
-      <div className="flex-none border-b border-slate-200 bg-white px-3 py-1.5">
+      <div className="flex-none border-b border-stone-200 bg-white px-3 py-1.5">
         <div className="flex flex-wrap items-center gap-0.5">
           <ToolButton title="Undo (Ctrl+Z)" onClick={undo} disabled={!canUndo}><Undo className="h-4 w-4" /></ToolButton>
           <ToolButton title="Redo (Ctrl+Y)" onClick={redo} disabled={!canRedo}><Redo className="h-4 w-4" /></ToolButton>
@@ -544,7 +549,7 @@ export default function DocumentEditor({ documentId, title, content, commit, und
             <Menu open={menu === "shape"} onClose={() => setMenu(null)}>
               <div className="grid grid-cols-2 gap-1">
                 {SHAPE_TYPES.map((shape) => (
-                  <button key={shape.id} type="button" onClick={() => { setShapeType(shape.id); setTool("shape"); setMenu(null); }} className="rounded-lg px-2 py-1.5 text-left text-xs font-medium text-slate-700 hover:bg-blue-50">{shape.label}</button>
+                  <button key={shape.id} type="button" onClick={() => { setShapeType(shape.id); setTool("shape"); setMenu(null); }} className="rounded-lg px-2 py-1.5 text-left text-xs font-medium text-stone-700 hover:bg-amber-50">{shape.label}</button>
                 ))}
               </div>
             </Menu>
@@ -552,7 +557,7 @@ export default function DocumentEditor({ documentId, title, content, commit, und
           <div className="relative" data-menu>
             <ToolButton title="Sticky note (N)" active={tool === "note" || menu === "note"} onClick={() => setMenu(menu === "note" ? null : "note")} disabled={locked}><StickyNote className="h-4 w-4" /><ChevronDown className="h-3 w-3" /></ToolButton>
             <Menu open={menu === "note"} onClose={() => setMenu(null)} width="w-auto">
-              <div className="flex gap-2">{NOTE_COLORS.map((color) => <button key={color} type="button" aria-label={`Note ${color}`} onClick={() => { setNoteColor(color); setTool("note"); setMenu(null); }} className="h-8 w-8 rounded-lg border border-slate-300" style={{ backgroundColor: color }} />)}</div>
+              <div className="flex gap-2">{NOTE_COLORS.map((color) => <button key={color} type="button" aria-label={`Note ${color}`} onClick={() => { setNoteColor(color); setTool("note"); setMenu(null); }} className="h-8 w-8 rounded-lg border border-stone-300" style={{ backgroundColor: color }} />)}</div>
             </Menu>
           </div>
           <ToolButton title="Insert image (or paste / drop one)" onClick={() => fileInputRef.current?.click()} disabled={locked}><ImageIcon className="h-4 w-4" /></ToolButton>
@@ -567,7 +572,7 @@ export default function DocumentEditor({ documentId, title, content, commit, und
             <div className="relative" data-menu>
               <ToolButton title="Page style" active={menu === "page"} onClick={() => setMenu(menu === "page" ? null : "page")}><FileText className="h-4 w-4" /><span className="hidden lg:inline">{PAGE_STYLES.find((style) => style.id === pageStyle)?.label}</span><ChevronDown className="h-3 w-3" /></ToolButton>
               <Menu open={menu === "page"} onClose={() => setMenu(null)} align="right" width="w-40">
-                {PAGE_STYLES.map((style) => <button key={style.id} type="button" onClick={() => { onPageStyleChange(style.id); setMenu(null); }} className={`block w-full rounded-lg px-3 py-1.5 text-left text-sm ${style.id === pageStyle ? "bg-blue-50 font-semibold text-blue-700" : "text-slate-700 hover:bg-slate-50"}`}>{style.label}</button>)}
+                {PAGE_STYLES.map((style) => <button key={style.id} type="button" onClick={() => { onPageStyleChange(style.id); setMenu(null); }} className={`block w-full rounded-lg px-3 py-1.5 text-left text-sm ${style.id === pageStyle ? "bg-amber-50 font-semibold text-amber-800" : "text-stone-700 hover:bg-stone-50"}`}>{style.label}</button>)}
               </Menu>
             </div>
             <div className="relative" data-menu>
@@ -575,9 +580,9 @@ export default function DocumentEditor({ documentId, title, content, commit, und
                 {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}<span className="hidden lg:inline">Export</span><ChevronDown className="h-3 w-3" />
               </ToolButton>
               <Menu open={menu === "export"} onClose={() => setMenu(null)} align="right" width="w-52">
-                <button type="button" onClick={() => runExport("pdf")} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"><FileText className="h-4 w-4 text-rose-500" /> PDF (all pages)</button>
-                <button type="button" onClick={() => runExport("png")} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"><FileImage className="h-4 w-4 text-blue-500" /> PNG (this page)</button>
-                <button type="button" onClick={() => runExport("print")} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"><Printer className="h-4 w-4 text-slate-500" /> Print</button>
+                <button type="button" onClick={() => runExport("pdf")} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-50"><FileText className="h-4 w-4 text-rose-500" /> PDF (all pages)</button>
+                <button type="button" onClick={() => runExport("png")} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-50"><FileImage className="h-4 w-4 text-amber-500" /> PNG (this page)</button>
+                <button type="button" onClick={() => runExport("print")} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-50"><Printer className="h-4 w-4 text-stone-500" /> Print</button>
               </Menu>
             </div>
           </div>
@@ -585,7 +590,7 @@ export default function DocumentEditor({ documentId, title, content, commit, und
 
         {/* Context row */}
         {(activeEditor || inkTool || (single || selectedBlocks.length > 1) || hint) && (
-          <div className="mt-1.5 flex min-h-9 flex-wrap items-center gap-2 border-t border-slate-100 pt-1.5">
+          <div className="mt-1.5 flex min-h-9 flex-wrap items-center gap-2 border-t border-stone-100 pt-1.5">
             {activeEditor && editingId ? <TextFormatBar editor={activeEditor} /> : inkTool ? (
               <>
                 {tool !== "eraser" && (
@@ -604,7 +609,7 @@ export default function DocumentEditor({ documentId, title, content, commit, und
                             aria-checked={current === size.width}
                             title={`${size.label} (~${px}px)`}
                             onClick={() => (tool === "highlighter" ? setHighlighterWidth(size.width) : setPenWidth(size.width))}
-                            className={`flex h-8 w-10 items-center justify-center rounded-md ${current === size.width ? "bg-blue-100 ring-1 ring-blue-400" : "hover:bg-slate-100"}`}
+                            className={`flex h-8 w-10 items-center justify-center rounded-md ${current === size.width ? "bg-amber-100 ring-1 ring-amber-400" : "hover:bg-stone-100"}`}
                           >
                             <span className="block w-6 rounded-full" style={{ height: Math.min(px, 14), backgroundColor: tool === "highlighter" ? highlightColor : inkColor, opacity: tool === "highlighter" ? 0.5 : 1 }} />
                           </button>
@@ -612,41 +617,41 @@ export default function DocumentEditor({ documentId, title, content, commit, und
                       })}
                     </div>
                     {tool === "pen" && (
-                      <label className="ml-1 flex items-center gap-2 text-xs text-slate-500">
-                        <input type="range" min="0.15" max="4" step="0.05" value={penWidth} onChange={(event) => setPenWidth(Number(event.target.value))} className="w-24 accent-blue-600" aria-label="Fine-tune pen thickness" />
+                      <label className="ml-1 flex items-center gap-2 text-xs text-stone-500">
+                        <input type="range" min="0.15" max="4" step="0.05" value={penWidth} onChange={(event) => setPenWidth(Number(event.target.value))} className="w-24 accent-amber-600" aria-label="Fine-tune pen thickness" />
                         <span className="w-12 tabular-nums">~{visiblePx(penWidth)}px</span>
                       </label>
                     )}
                   </>
                 )}
-                {hint && <span className="text-xs text-slate-500">{hint}</span>}
+                {hint && <span className="text-xs text-stone-500">{hint}</span>}
               </>
             ) : selectedBlocks.length ? (
               <>
                 {single && single.type !== "image" && (
                   <>
-                    <span className="text-[11px] font-semibold text-slate-500">Fill</span>
+                    <span className="text-[11px] font-semibold text-stone-500">Fill</span>
                     <Swatches colors={single.type === "sticker" ? NOTE_COLORS : COLORS} value={single.type === "sticker" ? single.color : single.fill ?? "transparent"} allowNone={single.type !== "sticker"} onPick={(color) => patchBlock(single.id, single.type === "sticker" ? { color } : { fill: color })} />
                     <Divider />
                   </>
                 )}
                 {single && (
                   <>
-                    <span className="text-[11px] font-semibold text-slate-500">Border</span>
+                    <span className="text-[11px] font-semibold text-stone-500">Border</span>
                     <Swatches colors={COLORS} value={strokeFor(single)} allowNone onPick={(color) => patchBlock(single.id, { stroke: color, ...(single.type === "text" ? { framed: color !== "transparent" } : {}) })} />
-                    <select aria-label="Border width" value={single.strokeWidth || 1} onChange={(event) => patchBlock(single.id, { strokeWidth: Number(event.target.value) })} className="rounded-md border border-slate-200 bg-white px-1 py-0.5 text-xs">
+                    <select aria-label="Border width" value={single.strokeWidth || 1} onChange={(event) => patchBlock(single.id, { strokeWidth: Number(event.target.value) })} className="rounded-md border border-stone-200 bg-white px-1 py-0.5 text-xs">
                       {[1, 2, 3, 4, 6].map((width) => <option key={width} value={width}>{width}px</option>)}
                     </select>
                     {single.type === "text" && (
-                      <select aria-label="Base text size" value={single.fontSize || 16} onChange={(event) => patchBlock(single.id, { fontSize: Number(event.target.value) })} className="rounded-md border border-slate-200 bg-white px-1 py-0.5 text-xs">
+                      <select aria-label="Base text size" value={single.fontSize || 16} onChange={(event) => patchBlock(single.id, { fontSize: Number(event.target.value) })} className="rounded-md border border-stone-200 bg-white px-1 py-0.5 text-xs">
                         {[12, 14, 16, 18, 20, 24, 28, 32].map((size) => <option key={size} value={size}>{size}px text</option>)}
                       </select>
                     )}
                     {single.type === "table" && (
-                      <button type="button" onClick={() => patchBlock(single.id, { headerRow: !single.headerRow })} className={`rounded-md px-2 py-1 text-xs font-semibold ${single.headerRow ? "bg-blue-100 text-blue-700" : "text-slate-600 hover:bg-slate-100"}`}>Header row</button>
+                      <button type="button" onClick={() => patchBlock(single.id, { headerRow: !single.headerRow })} className={`rounded-md px-2 py-1 text-xs font-semibold ${single.headerRow ? "bg-amber-100 text-amber-800" : "text-stone-600 hover:bg-stone-100"}`}>Header row</button>
                     )}
                     {single.type === "shape" && (
-                      <select aria-label="Shape" value={single.shapeType} onChange={(event) => patchBlock(single.id, { shapeType: event.target.value })} className="rounded-md border border-slate-200 bg-white px-1 py-0.5 text-xs">
+                      <select aria-label="Shape" value={single.shapeType} onChange={(event) => patchBlock(single.id, { shapeType: event.target.value })} className="rounded-md border border-stone-200 bg-white px-1 py-0.5 text-xs">
                         {SHAPE_TYPES.map((shape) => <option key={shape.id} value={shape.id}>{shape.label}</option>)}
                       </select>
                     )}
@@ -655,14 +660,14 @@ export default function DocumentEditor({ documentId, title, content, commit, und
                 )}
                 {selectedBlocks.length > 1 && (
                   <>
-                    <span className="text-[11px] font-semibold text-slate-500">{selectedBlocks.length} selected</span>
+                    <span className="text-[11px] font-semibold text-stone-500">{selectedBlocks.length} selected</span>
                     {[["left", AlignStartVertical], ["center", AlignCenterVertical], ["right", AlignEndVertical], ["top", AlignStartHorizontal], ["middle", AlignCenterHorizontal], ["bottom", AlignEndHorizontal]].map(([mode, Icon]) => (
                       <ToolButton key={mode} title={`Align ${mode}`} onClick={() => patchBlocks(alignBlocks(selectedBlocks, mode))}><Icon className="h-4 w-4" /></ToolButton>
                     ))}
                     {selectedBlocks.length > 2 && (
                       <>
-                        <button type="button" onClick={() => patchBlocks(distributeBlocks(selectedBlocks, "x"))} className="rounded-md px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100">Space horizontally</button>
-                        <button type="button" onClick={() => patchBlocks(distributeBlocks(selectedBlocks, "y"))} className="rounded-md px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100">Space vertically</button>
+                        <button type="button" onClick={() => patchBlocks(distributeBlocks(selectedBlocks, "x"))} className="rounded-md px-2 py-1 text-xs font-semibold text-stone-600 hover:bg-stone-100">Space horizontally</button>
+                        <button type="button" onClick={() => patchBlocks(distributeBlocks(selectedBlocks, "y"))} className="rounded-md px-2 py-1 text-xs font-semibold text-stone-600 hover:bg-stone-100">Space vertically</button>
                       </>
                     )}
                     <Divider />
@@ -674,14 +679,14 @@ export default function DocumentEditor({ documentId, title, content, commit, und
                 <ToolButton title="Delete (Del)" onClick={deleteSelection}><Trash2 className="h-4 w-4 text-red-500" /></ToolButton>
               </>
             ) : hint ? (
-              <span className="flex items-center gap-2 text-xs font-semibold text-blue-700"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-600" />{hint}<span className="font-normal text-blue-500">Esc to cancel</span></span>
+              <span className="flex items-center gap-2 text-xs font-semibold text-amber-800"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-stone-900 dark:bg-amber-400 dark:text-stone-900" />{hint}<span className="font-normal text-amber-500">Esc to cancel</span></span>
             ) : null}
           </div>
         )}
       </div>
 
       {/* Pages */}
-      <div ref={scrollRef} onScroll={onScroll} className="relative min-h-0 flex-1 overflow-auto bg-slate-200/70" style={{ cursor: CREATION_TOOLS.includes(tool) ? "crosshair" : undefined }}>
+      <div ref={scrollRef} onScroll={onScroll} className="relative min-h-0 flex-1 overflow-auto bg-stone-200/70" style={{ cursor: CREATION_TOOLS.includes(tool) ? "crosshair" : undefined }}>
         <div className="relative mx-auto my-6" style={{ width: A4_WIDTH * zoom, height: documentHeight * zoom }}>
           <div className="workspace-document absolute left-0 top-0" style={{ width: A4_WIDTH, height: documentHeight, transform: `scale(${zoom})`, transformOrigin: "top left" }}>
             {pages.map((page, index) => (
@@ -689,7 +694,7 @@ export default function DocumentEditor({ documentId, title, content, commit, und
                 key={page.id}
                 ref={(element) => { if (element) pageRefs.current.set(page.id, element); else pageRefs.current.delete(page.id); }}
                 data-page={index + 1}
-                className={`page-${pageStyle} absolute left-0 overflow-hidden bg-white shadow-[0_10px_24px_rgba(15,23,42,0.16)] ring-1 ring-slate-300`}
+                className={`page-${pageStyle} absolute left-0 overflow-hidden bg-white shadow-[0_10px_24px_rgba(15,23,42,0.16)] ring-1 ring-stone-300`}
                 style={{ top: index * PAGE_STEP, width: A4_WIDTH, height: A4_HEIGHT }}
                 onPointerDown={(event) => onPagePointerDown(event, page, index)}
                 onDragOver={(event) => { if (!locked && [...event.dataTransfer.types].includes("Files")) event.preventDefault(); }}
@@ -704,10 +709,16 @@ export default function DocumentEditor({ documentId, title, content, commit, und
                 {preview?.type === "move" && preview.pageId === page.id && preview.guides.map((guide, i) => (
                   <span key={i} data-export-ignore className="pointer-events-none absolute z-30 bg-pink-500" style={guide.axis === "x" ? { left: guide.at, top: 0, width: 1, height: A4_HEIGHT } : { top: guide.at, left: 0, height: 1, width: A4_WIDTH }} />
                 ))}
-                {(preview?.type === "marquee" || preview?.type === "create") && preview.pageId === page.id && preview.rect && (
-                  <span data-export-ignore className={`pointer-events-none absolute z-30 border ${preview.type === "marquee" ? "border-blue-500 bg-blue-500/10" : "border-2 border-dashed border-blue-500 bg-blue-500/5"}`} style={{ left: preview.rect.x, top: preview.rect.y, width: preview.rect.w, height: preview.rect.h }} />
+                {preview?.type === "create" && tool === "shape" && preview.pageId === page.id && preview.rect && (
+                  // Draw the real shape while dragging, not a box around it.
+                  <span data-export-ignore className="pointer-events-none absolute z-30 opacity-70" style={{ left: preview.rect.x, top: preview.rect.y, width: Math.max(1, preview.rect.w), height: Math.max(1, preview.rect.h) }}>
+                    <ShapeContent block={{ shapeType, stroke: "#2563eb", strokeWidth: 2, fill: "transparent" }} w={Math.max(1, preview.rect.w)} h={Math.max(1, preview.rect.h)} />
+                  </span>
                 )}
-                <span data-export-ignore className="pointer-events-none absolute bottom-4 left-0 right-0 select-none text-center text-[10px] font-medium text-slate-400">{index + 1}</span>
+                {(preview?.type === "marquee" || (preview?.type === "create" && tool !== "shape")) && preview.pageId === page.id && preview.rect && (
+                  <span data-export-ignore className={`pointer-events-none absolute z-30 border ${preview.type === "marquee" ? "border-amber-500 bg-amber-500/10" : "border-2 border-dashed border-amber-500 bg-amber-500/5"}`} style={{ left: preview.rect.x, top: preview.rect.y, width: preview.rect.w, height: preview.rect.h }} />
+                )}
+                <span data-export-ignore className="pointer-events-none absolute bottom-4 left-0 right-0 select-none text-center text-[10px] font-medium text-stone-400">{index + 1}</span>
               </div>
             ))}
 
@@ -726,7 +737,7 @@ export default function DocumentEditor({ documentId, title, content, commit, und
       </div>
 
       {/* Bottom bar */}
-      <div className="flex h-11 flex-none items-center justify-between border-t border-slate-200 bg-white px-3 text-sm text-slate-600">
+      <div className="flex h-11 flex-none items-center justify-between border-t border-stone-200 bg-white px-3 text-sm text-stone-600">
         <div className="flex items-center gap-1">
           <ToolButton title="Previous page" onClick={() => scrollToPage(Math.max(0, currentPage - 1))} disabled={currentPage === 0}><ChevronLeft className="h-4 w-4" /></ToolButton>
           <span className="min-w-[70px] text-center text-xs font-semibold">Page {currentPage + 1} / {pages.length}</span>
@@ -739,7 +750,7 @@ export default function DocumentEditor({ documentId, title, content, commit, und
         </div>
         <div className="flex items-center gap-1">
           <ToolButton title="Zoom out" onClick={() => setZoom((value) => Math.max(0.25, Math.round((value - 0.1) * 100) / 100))}><Minus className="h-4 w-4" /></ToolButton>
-          <input type="range" min="25" max="300" step="5" value={Math.round(zoom * 100)} onChange={(event) => setZoom(Number(event.target.value) / 100)} className="w-24 accent-blue-600" aria-label="Zoom" />
+          <input type="range" min="25" max="300" step="5" value={Math.round(zoom * 100)} onChange={(event) => setZoom(Number(event.target.value) / 100)} className="w-24 accent-amber-600" aria-label="Zoom" />
           <ToolButton title="Zoom in" onClick={() => setZoom((value) => Math.min(3, Math.round((value + 0.1) * 100) / 100))}><Plus className="h-4 w-4" /></ToolButton>
           <span className="w-10 text-right text-xs font-semibold">{Math.round(zoom * 100)}%</span>
           <ToolButton title="Fit width" onClick={() => { const width = scrollRef.current?.clientWidth ?? A4_WIDTH; setZoom(Math.round(Math.min(2, Math.max(0.25, (width - 48) / A4_WIDTH)) * 100) / 100); }}><Maximize2 className="h-4 w-4" /></ToolButton>
@@ -748,7 +759,7 @@ export default function DocumentEditor({ documentId, title, content, commit, und
 
       {cellMenu && tableCell && (
         <div className="fixed inset-0 z-[90]" onPointerDown={() => setCellMenu(null)} onContextMenu={(event) => { event.preventDefault(); setCellMenu(null); }}>
-          <div className="absolute w-48 rounded-xl border border-slate-200 bg-white p-1.5 text-sm shadow-xl" style={{ left: cellMenu.x, top: cellMenu.y }} onPointerDown={(event) => event.stopPropagation()}>
+          <div className="absolute w-48 rounded-xl border border-stone-200 bg-white p-1.5 text-sm shadow-xl" style={{ left: cellMenu.x, top: cellMenu.y }} onPointerDown={(event) => event.stopPropagation()}>
             {[
               ["Insert row above", { type: "insertRow", index: cellMenu.r }],
               ["Insert row below", { type: "insertRow", index: cellMenu.r + 1 }],
@@ -758,7 +769,7 @@ export default function DocumentEditor({ documentId, title, content, commit, und
               ["Delete column", { type: "deleteCol", index: cellMenu.c }, tableCell.cols <= 1],
               [tableCell.headerRow ? "Remove header row" : "Make first row a header", { type: "toggleHeader" }],
             ].map(([label, change, disabled]) => (
-              <button key={label} type="button" disabled={disabled} onClick={() => tableAction(change)} className="block w-full rounded-lg px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 disabled:opacity-40">{label}</button>
+              <button key={label} type="button" disabled={disabled} onClick={() => tableAction(change)} className="block w-full rounded-lg px-3 py-1.5 text-left text-stone-700 hover:bg-stone-50 disabled:opacity-40">{label}</button>
             ))}
           </div>
         </div>

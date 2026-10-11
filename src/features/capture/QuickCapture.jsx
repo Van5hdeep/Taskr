@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { createPortal } from "react-dom";
-import { Calendar, CornerDownLeft, Flame, Loader2, Star, X } from "lucide-react";
+import { Calendar, CornerDownLeft, Flame, Loader2, Star, X } from "../../lib/icons";
 import { toast } from "sonner";
 import { supabase, formatSupabaseError } from "../../lib/supabase";
 import { useMoneyFormat } from "../../lib/profile";
 import * as stickerApi from "../sticker/api";
 import { parseCapture } from "../sticker/logic";
+import { urgencyFields } from "../sticker/constants";
 import { formatDue } from "../sticker/format";
 import { parseDay, suggestCategory } from "../finance/calc";
 import { detectMode, parseMoneyCapture } from "./parse";
 
 const MODES = [
-  { id: "task", label: "Task", hint: "Call bank tomorrow 5pm ! #finance" },
+  { id: "task", label: "Sticker", hint: "Call bank tomorrow 5pm !   (! makes it red/urgent)" },
   { id: "expense", label: "Expense", hint: "₹450 lunch yesterday" },
   { id: "income", label: "Income", hint: "50000 salary" },
 ];
@@ -79,8 +80,8 @@ export default function QuickCapture({ initialMode = "task", onClose }) {
     setBusy(true);
     try {
       if (mode === "task") {
-        const created = await stickerApi.createTask(boardId, { title: task.title, isUrgent: task.isUrgent, isImportant: task.isImportant, deadline: task.deadline, tags: task.tags });
-        toast.success(`Task added: "${created.title}"`, { action: { label: "Open", onClick: () => navigate(`/sticker?board=${boardId}&task=${created.id}`) } });
+        const created = await stickerApi.createTask(boardId, { title: task.title, deadline: task.deadline, tags: task.tags, ...urgencyFields(task.isUrgent ? "red" : "blue") });
+        toast.success(`Sticker added: "${created.title}"`, { action: { label: "Open", onClick: () => navigate(`/sticker?board=${boardId}&task=${created.id}`) } });
       } else {
         let account = accountId;
         if (!account) {
@@ -103,15 +104,15 @@ export default function QuickCapture({ initialMode = "task", onClose }) {
   const categories = finance?.categories.filter((category) => category.kind === mode) ?? [];
 
   return createPortal(
-    <div className="fixed inset-0 z-[200] flex items-start justify-center bg-slate-900/40 p-4 pt-[14vh] backdrop-blur-sm" onMouseDown={onClose}>
-      <form onSubmit={submit} onMouseDown={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="Quick add" className="w-full max-w-xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0e1532]">
-        <div className="flex items-center gap-1 border-b border-slate-100 px-3 pt-3 dark:border-white/10">
+    <div className="fixed inset-0 z-[200] flex items-start justify-center bg-stone-900/40 p-4 pt-[14vh] backdrop-blur-sm" onMouseDown={onClose}>
+      <form onSubmit={submit} onMouseDown={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="Quick add" className="w-full max-w-xl overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl dark:border-white/10 dark:bg-ink-900">
+        <div className="flex items-center gap-1 border-b border-stone-100 px-3 pt-3 dark:border-white/10">
           {MODES.map((item) => (
-            <button key={item.id} type="button" onClick={() => { setMode(item.id); setCategoryId(null); inputRef.current?.focus(); }} className={`rounded-t-lg border-b-2 px-3 py-2 text-xs font-bold ${mode === item.id ? "border-blue-600 text-blue-700 dark:text-blue-300" : "border-transparent text-slate-500 hover:text-slate-800"}`}>
+            <button key={item.id} type="button" onClick={() => { setMode(item.id); setCategoryId(null); inputRef.current?.focus(); }} className={`rounded-t-lg border-b-2 px-3 py-2 text-xs font-bold ${mode === item.id ? "border-amber-600 text-amber-800 dark:text-amber-300" : "border-transparent text-stone-500 hover:text-stone-800"}`}>
               {item.label}
             </button>
           ))}
-          <button type="button" onClick={onClose} className="ml-auto rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5" aria-label="Close"><X className="h-4 w-4" /></button>
+          <button type="button" onClick={onClose} className="ml-auto rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 dark:hover:bg-white/5" aria-label="Close"><X className="h-4 w-4" /></button>
         </div>
         <div className="flex items-center gap-2 px-4 py-3">
           <input
@@ -120,40 +121,37 @@ export default function QuickCapture({ initialMode = "task", onClose }) {
             onChange={(event) => onChange(event.target.value)}
             placeholder={MODES.find((item) => item.id === mode).hint}
             aria-label={`Quick add ${mode}`}
-            className="min-w-0 flex-1 bg-transparent text-base text-slate-900 outline-none placeholder:text-slate-400 dark:text-white"
+            className="min-w-0 flex-1 bg-transparent text-base text-stone-900 outline-none placeholder:text-stone-400 dark:text-white"
           />
-          <button type="submit" disabled={!ready || busy} className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-40">
+          <button type="submit" disabled={!ready || busy} className="inline-flex items-center gap-1.5 rounded-xl bg-stone-900 dark:bg-amber-400 dark:text-stone-900 px-3 py-2 text-xs font-bold text-white hover:bg-stone-800 dark:hover:bg-amber-300 disabled:opacity-40">
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CornerDownLeft className="h-3.5 w-3.5" />} Add
           </button>
         </div>
-        <div className="flex min-h-11 flex-wrap items-center gap-2 border-t border-slate-100 bg-slate-50/70 px-4 py-2 text-xs dark:border-white/10 dark:bg-white/[0.03]">
+        <div className="flex min-h-11 flex-wrap items-center gap-2 border-t border-stone-100 bg-stone-50/70 px-4 py-2 text-xs dark:border-white/10 dark:bg-white/[0.03]">
           {mode === "task" ? (
             <>
-              {task?.isUrgent && <span className={`${chip} bg-red-100 text-red-700`}><Flame className="h-3 w-3" /> Urgent</span>}
-              {task?.isImportant && <span className={`${chip} bg-amber-100 text-amber-800`}><Star className="h-3 w-3" /> Important</span>}
-              {task?.deadline && <span className={`${chip} bg-blue-50 text-blue-700`}><Calendar className="h-3 w-3" /> {formatDue(task.deadline)}</span>}
-              {task?.tags.map((tag) => <span key={tag} className={`${chip} bg-slate-200/70 text-slate-600`}>#{tag}</span>)}
-              <select value={boardId} onChange={(event) => setBoardId(event.target.value)} aria-label="Board" className="ml-auto rounded-md border border-slate-200 bg-white px-1.5 py-1 text-xs dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
-                {boards.map((board) => <option key={board.id} value={board.id}>{board.name}</option>)}
-              </select>
+              {task?.isUrgent && <span className={`${chip} bg-red-100 text-red-700`}><Flame className="h-3 w-3" /> Urgent (red sticker)</span>}
+              {task?.isImportant && !task?.isUrgent && <span className={`${chip} bg-amber-100 text-amber-800`}><Star className="h-3 w-3" /> Soon</span>}
+              {task?.deadline && <span className={`${chip} bg-amber-50 text-amber-800`}><Calendar className="h-3 w-3" /> {formatDue(task.deadline)}</span>}
+              {task?.tags.map((tag) => <span key={tag} className={`${chip} bg-stone-200/70 text-stone-600`}>#{tag}</span>)}
             </>
           ) : (
             <>
-              {entry?.amount ? <span className={`${chip} ${mode === "income" ? "bg-emerald-100 text-emerald-700" : "bg-slate-200/70 text-slate-700"}`}>{mode === "income" ? "+" : "−"}{money(entry.amount)}</span> : <span className="text-slate-400">Type an amount and what it was for</span>}
-              {entry?.amount && <span className={`${chip} bg-blue-50 text-blue-700`}><Calendar className="h-3 w-3" /> {parseDay(entry.date).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}</span>}
+              {entry?.amount ? <span className={`${chip} ${mode === "income" ? "bg-emerald-100 text-emerald-700" : "bg-stone-200/70 text-stone-700"}`}>{mode === "income" ? "+" : "−"}{money(entry.amount)}</span> : <span className="text-stone-400">Type an amount and what it was for</span>}
+              {entry?.amount && <span className={`${chip} bg-amber-50 text-amber-800`}><Calendar className="h-3 w-3" /> {parseDay(entry.date).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}</span>}
               <span className="ml-auto flex items-center gap-1.5">
-                <select value={effectiveCategory} onChange={(event) => setCategoryId(event.target.value)} aria-label="Category" className="rounded-md border border-slate-200 bg-white px-1.5 py-1 text-xs dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
+                <select value={effectiveCategory} onChange={(event) => setCategoryId(event.target.value)} aria-label="Category" className="rounded-md border border-stone-200 bg-white px-1.5 py-1 text-xs dark:border-white/10 dark:bg-white/5 dark:text-stone-200">
                   <option value="">Uncategorised</option>
                   {categories.map((category) => <option key={category.id} value={category.id}>{category.name}{category.id === suggested && categoryId == null ? " (suggested)" : ""}</option>)}
                 </select>
-                <select value={accountId} onChange={(event) => setAccountId(event.target.value)} aria-label="Account" className="rounded-md border border-slate-200 bg-white px-1.5 py-1 text-xs dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
+                <select value={accountId} onChange={(event) => setAccountId(event.target.value)} aria-label="Account" className="rounded-md border border-stone-200 bg-white px-1.5 py-1 text-xs dark:border-white/10 dark:bg-white/5 dark:text-stone-200">
                   {finance?.accounts.length ? finance.accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>) : <option value="">Cash (new)</option>}
                 </select>
               </span>
             </>
           )}
         </div>
-        <p className="border-t border-slate-100 px-4 py-2 text-[11px] text-slate-400 dark:border-white/10">Start with <kbd className="font-mono">t</kbd>, <kbd className="font-mono">e</kbd> or <kbd className="font-mono">i</kbd> + space to switch · Enter to add · Esc to close</p>
+        <p className="border-t border-stone-100 px-4 py-2 text-[11px] text-stone-400 dark:border-white/10">Start with <kbd className="font-mono">t</kbd>, <kbd className="font-mono">e</kbd> or <kbd className="font-mono">i</kbd> + space to switch · Enter to add · Esc to close</p>
       </form>
     </div>,
     document.body

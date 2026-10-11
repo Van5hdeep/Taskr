@@ -1,319 +1,271 @@
-import { useEffect, useRef, useState } from "react";
-import {
-  ArrowDownRight,
-  ArrowRight,
-  BarChart3,
-  Check,
-  CheckCircle2,
-  ChevronDown,
-  GitBranch,
-  Layers3,
-  MousePointer2,
-  PenLine,
-  PieChart,
-  Sparkles,
-  StickyNote,
-  WalletCards,
-} from "lucide-react";
+import { useEffect, useRef } from "react";
+import Lenis from "lenis";
+import "lenis/dist/lenis.css";
+import { createScope, createTimeline, onScroll, stagger, svg } from "animejs";
+import { ArrowRight, Check, ChevronDown } from "../../lib/icons";
 import BrandLogo from "../BrandLogo";
+import { CATCHPHRASE_GLYPHS, CATCHPHRASE_VIEWBOX } from "./catchphrase";
+import { addDemoToTimeline, FinanceDemo, FlowDemo, NotesDemo, StickerDemo } from "./FeatureDemos";
+import { staged } from "./motion";
 
-function useScrollPosition() {
-  const [scrollY, setScrollY] = useState(0);
+// Tile positions on the 64×64 Quad grid; tile 2 is the one that lifts off.
+const TILES = [
+  { x: 4, y: 4, spread: [-5, -5] },
+  { x: 34, y: 4, spread: [5, -5] },
+  { x: 4, y: 34, spread: [-5, 5] },
+  { x: 34, y: 34, spread: [5, 5] },
+];
+const tick = ({ x, y }) => `M${x + 7} ${y + 13.5} L${x + 11.5} ${y + 18} L${x + 19.5} ${y + 9}`;
 
-  useEffect(() => {
-    let frame = null;
-    const update = () => {
-      if (frame) return;
-      frame = requestAnimationFrame(() => {
-        setScrollY(window.scrollY);
-        frame = null;
-      });
-    };
-    window.addEventListener("scroll", update, { passive: true });
-    update();
-    return () => {
-      window.removeEventListener("scroll", update);
-      if (frame) cancelAnimationFrame(frame);
-    };
-  }, []);
-
-  return scrollY;
-}
-
-function Reveal({ children, className = "", delay = 0 }) {
-  const ref = useRef(null);
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const node = ref.current;
-    if (!node) return undefined;
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        setVisible(true);
-        observer.disconnect();
-      }
-    }, { threshold: 0.14, rootMargin: "0px 0px -8%" });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <div
-      ref={ref}
-      className={`landing-reveal ${visible ? "is-visible" : ""} ${className}`}
-      style={{ transitionDelay: `${delay}ms` }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function MiniWindow({ label, children, className = "" }) {
-  return (
-    <div className={`landing-mini-window ${className}`}>
-      <div className="landing-mini-window-bar">
-        <span className="landing-window-dots"><i /><i /><i /></span>
-        <span>{label}</span>
-        <span className="landing-window-menu">•••</span>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function StickerPreview() {
-  return (
-    <MiniWindow label="STICKER MATRIX" className="landing-preview-sticker">
-      <div className="landing-sticker-board">
-        <div className="landing-sticker-card landing-sticker-card-blue">
-          <span className="landing-sticker-card-pin" />
-          <strong>Ship the launch plan</strong>
-          <small>3 subtasks · due today</small>
-          <div className="landing-sticker-progress"><span style={{ width: "72%" }} /></div>
-        </div>
-        <div className="landing-sticker-card landing-sticker-card-yellow">
-          <span className="landing-sticker-card-pin" />
-          <strong>Review research notes</strong>
-          <small>Keep the important close</small>
-        </div>
-        <div className="landing-sticker-card landing-sticker-card-white">
-          <span className="landing-sticker-card-pin" />
-          <strong>Plan next week</strong>
-          <small>Friday · 4:30 PM</small>
-        </div>
-      </div>
-    </MiniWindow>
-  );
-}
-
-function FinancePreview() {
-  return (
-    <MiniWindow label="FINANCE" className="landing-preview-finance">
-      <div className="landing-finance-head"><span>This month</span><strong>₹42,800</strong><small>available to plan</small></div>
-      <div className="landing-finance-grid">
-        <div><span>Income</span><strong>₹68,000</strong><i className="is-positive" /></div>
-        <div><span>Expenses</span><strong>₹25,200</strong><i className="is-negative" /></div>
-      </div>
-      <div className="landing-bars" aria-hidden="true"><i style={{ height: "38%" }} /><i style={{ height: "62%" }} /><i style={{ height: "48%" }} /><i style={{ height: "82%" }} /><i style={{ height: "58%" }} /><i style={{ height: "92%" }} /><i style={{ height: "68%" }} /></div>
-      <div className="landing-finance-foot"><span><b /> Essentials</span><span><b /> Flex</span><span><b /> Saving</span></div>
-    </MiniWindow>
-  );
-}
-
-function FlowPreview() {
-  return (
-    <MiniWindow label="FLOW BUILDER" className="landing-preview-flow">
-      <div className="landing-flow-canvas">
-        <div className="landing-flow-line line-one" />
-        <div className="landing-flow-line line-two" />
-        <div className="landing-flow-node node-start"><small>START</small><strong>Capture idea</strong></div>
-        <div className="landing-flow-node node-middle"><small>STEP 02</small><strong>Shape the work</strong></div>
-        <div className="landing-flow-node node-end"><small>OUTPUT</small><strong>Ship it</strong></div>
-      </div>
-    </MiniWindow>
-  );
-}
-
-function WorkspacePreview() {
-  return (
-    <MiniWindow label="WORKSPACE" className="landing-preview-workspace">
-      <div className="landing-paper-toolbar"><span /><span /><span /><span /><b>Annotate</b><span /></div>
-      <div className="landing-paper">
-        <div className="landing-paper-title">A clear page for messy thinking.</div>
-        <div className="landing-paper-rule rule-long" />
-        <div className="landing-paper-rule rule-medium" />
-        <div className="landing-paper-note"><PenLine size={11} /> add a note here</div>
-        <div className="landing-paper-shape" />
-      </div>
-    </MiniWindow>
-  );
-}
-
-function ProductPreview({ type }) {
-  if (type === "sticker") return <StickerPreview />;
-  if (type === "finance") return <FinancePreview />;
-  if (type === "flow") return <FlowPreview />;
-  return <WorkspacePreview />;
-}
-
-const featureRows = [
+const FEATURES = [
   {
     id: "sticker",
-    eyebrow: "01 · Capture",
-    title: "Turn the task dump into a visual plan.",
-    body: "Sticker Matrix gets everything out of your head and onto a calm, tactile board. Add deadlines, subtasks, and urgency at the speed your thoughts arrive, then drag the work into an order you can actually see.",
-    icon: StickyNote,
-    accent: "blue",
-    bullets: ["Fast task capture with smart titles", "Deadlines, subtasks, and live progress", "A focused board that stays easy to scan"],
-  },
-  {
-    id: "workspace",
-    eyebrow: "02 · Think",
-    title: "A paper-like workspace for deeper work.",
-    body: "Write, sketch, annotate, and arrange ideas without leaving the product. The workspace keeps the familiar feel of a page while giving you the freedom of a canvas.",
-    icon: PenLine,
-    accent: "violet",
-    bullets: ["A4-style pages for notes and annotation", "High-definition ink and movable elements", "Tables, shapes, and clean text tools"],
-  },
-  {
-    id: "flow",
-    eyebrow: "03 · Connect",
-    title: "Make the relationships in your work visible.",
-    body: "Flow is a lightweight diagram space for turning process, systems, and data into connected shapes. Build a clear map without the overhead of a complicated diagram suite.",
-    icon: GitBranch,
-    accent: "cyan",
-    bullets: ["Draggable nodes and clean connectors", "Flowchart and data-flow building blocks", "Export finished diagrams as JPG or PDF"],
+    kicker: "Sticker",
+    title: <>Every task on <em>one board.</em></>,
+    body: "Write a sticker, colour it by urgency — red, blue or green — and check it off. Finished stickers rest on the Done board for a day, then clear themselves.",
+    points: ["Red, blue, green: urgency at a glance", "Drag stickers anywhere", "A Done board that tidies itself"],
+    Demo: StickerDemo,
   },
   {
     id: "finance",
-    eyebrow: "04 · Ground",
-    title: "Give every plan a financial reality check.",
-    body: "Track salary and other income alongside the expenses that shape your month. Finance turns raw numbers into a living cash-flow view, a budget you can act on, and a receipt you can take with you.",
-    icon: WalletCards,
-    accent: "emerald",
-    bullets: ["Income, expense, and budget tracking", "Category breakdowns and monthly snapshots", "Exportable receipt for your records"],
+    kicker: "Finance",
+    title: <>Know what's <em>safe to spend.</em></>,
+    body: "Track money in and out across your accounts, set budgets, and watch bills and savings goals. The graph shows where it's going before it's gone.",
+    points: ["Accounts, budgets, bills and goals", "Spending trends you can read in a second", "Import a bank statement in one go"],
+    Demo: FinanceDemo,
+  },
+  {
+    id: "notes",
+    kicker: "Workspace",
+    title: <>Pages for <em>thinking out loud.</em></>,
+    body: "Type, handwrite, highlight and drop in tables or shapes on clean A4 pages. Export to PDF when it's ready to share.",
+    points: ["Pen and highlighter with real ink", "Tables that grow as you type", "Export to PDF or image"],
+    Demo: NotesDemo,
+  },
+  {
+    id: "flow",
+    kicker: "Flow",
+    title: <>Map it out, <em>then ship it.</em></>,
+    body: "Drag blocks onto a canvas, connect them, and let Tidy up arrange the rest. Plans, processes and mind maps without the fuss.",
+    points: ["Connect blocks by dragging", "One-click tidy layout", "Export to image, PDF or Mermaid"],
+    Demo: FlowDemo,
   },
 ];
 
-function LandingPage({ onOpenAuth }) {
-  const scrollY = useScrollPosition();
+const prefersReducedMotion = () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-  const scrollTo = (id) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+/** All landing motion is scroll-synced anime.js timelines, torn down on unmount. */
+function useLandingMotion(rootRef) {
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || prefersReducedMotion()) return undefined;
+
+    // Measurements (the logo's centring offset) need the brand font loaded.
+    let scope = null;
+    let cancelled = false;
+    document.fonts.ready.then(() => { if (!cancelled) scope = build(); });
+
+    const build = () => createScope({ root }).add(() => {
+      // ── Hero: tick the four tiles, bring in the word, form the logo ──
+      const hero = root.querySelector("[data-hero]");
+      const word = root.querySelector("[data-hero-word]");
+      const mark = root.querySelector("[data-hero-mark]");
+      const gap = parseFloat(getComputedStyle(word.parentElement).columnGap) || 0;
+      const shift = (word.offsetWidth + gap) / 2;
+      const tiles = [...root.querySelectorAll(".hero-tile")];
+      const tileFaces = tiles.map((tile) => tile.querySelector("rect"));
+      const ticks = svg.createDrawable(".hero-tick");
+
+      const heroTl = staged(createTimeline({
+        defaults: { ease: "inOutQuad" },
+        autoplay: onScroll({ target: hero, enter: "top top", leave: "bottom bottom", sync: true }),
+      }));
+      heroTl
+        .add("[data-hero-hint]", { opacity: [1, 0], translateY: [0, 12], duration: 80 }, 0)
+        .add(mark, { translateX: [shift, shift], duration: 1 }, 0)
+        .add(word, { opacity: [0, 0], duration: 1 }, 0)
+        .add("[data-hero-after]", { opacity: [0, 0], duration: 1 }, 0);
+      tiles.forEach((tile, i) => {
+        const at = 90 + i * 110;
+        heroTl
+          .add(tile, { translateX: [TILES[i].spread[0], TILES[i].spread[0]], translateY: [TILES[i].spread[1], TILES[i].spread[1]], duration: 1 }, 0)
+          .add(tileFaces[i], { fill: ["#e7e2d6", "#1c1b19"], duration: 100 }, at)
+          .add(ticks[i], { draw: ["0 0", "0 1"], duration: 110 }, at + 40);
+      });
+      heroTl
+        .add(tiles, { translateX: 0, translateY: 0, duration: 200 }, 560)
+        .add(mark, { translateX: [shift, 0], duration: 200 }, 600)
+        .add(word, { opacity: [0, 1], translateX: [60, 0], duration: 200, ease: "outQuad" }, 610)
+        .add(ticks, { opacity: [1, 0], duration: 110 }, 720)
+        .add(tiles[1], { rotate: [0, 12], duration: 110, ease: "outBack(2)" }, 800)
+        .add("[data-hero-after]", { opacity: [0, 1], translateY: [24, 0], duration: 130, ease: "outQuad" }, 870);
+
+      // ── Features: each demo builds up as it scrolls into view ──
+      root.querySelectorAll("[data-feature]").forEach((section) => {
+        const tl = staged(createTimeline({
+          defaults: { ease: "outQuad" },
+          autoplay: onScroll({ target: section, enter: "bottom top", leave: "top top", sync: true }),
+        }));
+        addDemoToTimeline(tl, section.dataset.feature, section);
+        // A touch of parallax: the copy drifts slower than the demo.
+        staged(createTimeline({ autoplay: onScroll({ target: section, enter: "bottom top", leave: "top bottom", sync: true }) }))
+          .add(section.querySelector("[data-feature-copy]"), { translateY: [50, -50], duration: 1000, ease: "linear" }, 0);
+      });
+
+      // ── Catchphrase: outlines draw as you scroll, then fill in ──
+      const phrase = root.querySelector("[data-phrase]");
+      const glyphs = svg.createDrawable(".phrase-glyph");
+      staged(createTimeline({
+        defaults: { ease: "inOutSine" },
+        autoplay: onScroll({ target: phrase, enter: "top top", leave: "bottom bottom", sync: true }),
+      }))
+        .add(glyphs, { draw: ["0 0", "0 1"], duration: 500, delay: stagger(28) }, 0)
+        .add(".phrase-glyph", { fillOpacity: [0, 1], duration: 260, delay: stagger(14) }, 620)
+        .add(".phrase-glyph", { strokeOpacity: [1, 0], duration: 160 }, 860)
+        .add("[data-phrase-under]", { scaleX: [0, 1], duration: 160 }, 860);
+    });
+
+    return () => { cancelled = true; scope?.revert(); };
+  }, [rootRef]);
+}
+
+/** Lenis smooth scrolling for the landing page only; the app keeps native scroll. */
+function useSmoothScroll() {
+  const lenisRef = useRef(null);
+  useEffect(() => {
+    if (prefersReducedMotion()) return undefined;
+    const lenis = new Lenis({ lerp: 0.07, wheelMultiplier: 0.9, smoothWheel: true, autoRaf: true });
+    lenisRef.current = lenis;
+    return () => { lenis.destroy(); lenisRef.current = null; };
+  }, []);
+  return lenisRef;
+}
+
+export default function LandingPage({ onOpenAuth }) {
+  const rootRef = useRef(null);
+  const lenisRef = useSmoothScroll();
+  useLandingMotion(rootRef);
+
+  // Links like /#features arrive before the page renders; jump there once it has.
+  useEffect(() => {
+    const id = decodeURIComponent(window.location.hash.slice(1));
+    if (!id) return;
+    document.fonts.ready.then(() => document.getElementById(id)?.scrollIntoView({ block: "start" }));
+  }, []);
+  const scrollTo = (target) => {
+    const element = typeof target === "string" ? document.getElementById(target) : target;
+    if (lenisRef.current) lenisRef.current.scrollTo(element ?? 0, { offset: -64, duration: 1.6 });
+    else (element ? element.scrollIntoView({ behavior: "smooth" }) : window.scrollTo({ top: 0, behavior: "smooth" }));
   };
 
   return (
-    <div className="landing-page">
-      <div className="landing-noise" aria-hidden="true" />
-      <header className="landing-nav">
-        <button type="button" className="landing-brand" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Back to top">
-          <BrandLogo className="landing-wordmark" tone="light" />
-        </button>
-        <nav className="landing-nav-links" aria-label="Landing page navigation">
-          <button type="button" onClick={() => scrollTo("product")}>Product</button>
-          <button type="button" onClick={() => scrollTo("how-it-works")}>How it works</button>
-          <button type="button" onClick={() => scrollTo("footer")}>About</button>
-        </nav>
-        <div className="landing-nav-actions">
-          <button type="button" className="landing-sign-in" onClick={() => onOpenAuth("signin")}>Sign in</button>
+    <div ref={rootRef} className="landing min-h-screen bg-cream-50 text-stone-900 antialiased">
+      <header className="fixed inset-x-0 top-0 z-50 border-b border-stone-200/60 bg-cream-50/80 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+          <button type="button" onClick={() => scrollTo(0)} aria-label="taskr home"><BrandLogo size={22} markClassName="text-stone-900" /></button>
+          <nav className="hidden items-center gap-8 text-sm text-stone-600 md:flex">
+            <button type="button" onClick={() => scrollTo("features")} className="hover:text-stone-900">Features</button>
+            <button type="button" onClick={() => scrollTo("fastr")} className="hover:text-stone-900">Why taskr</button>
+          </nav>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => onOpenAuth("signin")} className="rounded-xl px-3 py-2 text-sm font-medium text-stone-700 hover:text-stone-950">Sign in</button>
+            <button type="button" onClick={() => onOpenAuth("signup")} className="rounded-xl bg-stone-900 px-4 py-2 text-sm font-semibold text-white hover:bg-stone-800">Get started</button>
+          </div>
         </div>
       </header>
 
-      <main>
-        <section className="landing-hero" aria-labelledby="landing-title">
-          <div className="landing-hero-glow landing-hero-glow-one" style={{ transform: `translate3d(${scrollY * 0.08}px, ${scrollY * 0.2}px, 0)` }} />
-          <div className="landing-hero-glow landing-hero-glow-two" style={{ transform: `translate3d(${-scrollY * 0.06}px, ${scrollY * 0.12}px, 0)` }} />
-          <div className="landing-hero-grid" style={{ transform: `translateY(${scrollY * 0.16}px)` }} />
-          <div className="landing-hero-inner">
-            <Reveal className="landing-hero-copy">
-              <div className="landing-kicker"><span className="landing-kicker-dot" /> One place for the work in progress</div>
-              <h1 id="landing-title">Make room for the work <em>that matters.</em></h1>
-              <p>Taskr brings your tasks, notes, diagrams, and money into one focused workspace—so your attention can move from scattered to clear.</p>
-              <div className="landing-hero-actions">
-                <button type="button" className="landing-primary-cta" onClick={() => onOpenAuth("signup")}>Start for free <ArrowDownRight size={18} /></button>
-                <button type="button" className="landing-text-cta" onClick={() => scrollTo("product")}>See the product <ArrowRight size={17} /></button>
-              </div>
-              <div className="landing-hero-proof"><CheckCircle2 size={16} /><span>No clutter. No complicated setup. Just your next move.</span></div>
-            </Reveal>
+      {/* Hero — pinned while the logo assembles */}
+      <section data-hero className="relative h-[520vh]">
+        <div className="sticky top-0 flex h-screen flex-col items-center justify-center overflow-hidden px-4">
+          <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-300/30 blur-[120px]" />
+          <div className="relative flex items-center gap-[clamp(14px,2.4vw,30px)]">
+            <svg data-hero-mark viewBox="0 0 64 64" className="h-[clamp(96px,16vw,184px)] w-[clamp(96px,16vw,184px)] shrink-0 overflow-visible" fill="#1c1b19" aria-hidden>
+              {TILES.map((tile, i) => (
+                <g key={i} className={`hero-tile ${i === 1 ? "hero-tile-lift" : ""}`} style={{ transformBox: "fill-box", transformOrigin: "center" }}>
+                  <rect x={tile.x} y={tile.y} width="26" height="26" rx="7" />
+                  <path className="hero-tick" d={tick(tile)} fill="none" stroke="#ffc71d" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
+                </g>
+              ))}
+            </svg>
+            <span data-hero-word className="font-brand text-[clamp(76px,15vw,180px)] font-semibold leading-none tracking-[-0.06em]">taskr</span>
+          </div>
 
-            <div className="landing-hero-visual" style={{ transform: `translate3d(0, ${Math.min(scrollY * -0.12, 0)}px, 0) rotate(${Math.min(scrollY * -0.008, 0)}deg)` }}>
-              <div className="landing-visual-orbit orbit-one" />
-              <div className="landing-visual-orbit orbit-two" />
-              <div className="landing-floating-chip chip-top"><Sparkles size={13} /> Your work, in motion</div>
-              <div className="landing-product-stack">
-                <StickerPreview />
-                <div className="landing-stack-shadow" />
-              </div>
-              <div className="landing-floating-chip chip-bottom"><MousePointer2 size={13} /> Drag. Shape. Finish.</div>
+
+          <h1 className="sr-only">taskr — stickers, money, notes and flows in one place</h1>
+          <div data-hero-after className="absolute bottom-[14vh] flex flex-col items-center px-4 text-center">
+            <div className="flex flex-wrap justify-center gap-3">
+              <button type="button" onClick={() => onOpenAuth("signup")} className="inline-flex items-center gap-2 rounded-xl bg-stone-900 px-5 py-3 text-sm font-semibold text-white hover:bg-stone-800">Start for free <ArrowRight className="h-4 w-4" /></button>
+              <button type="button" onClick={() => scrollTo("features")} className="rounded-xl border border-stone-300 bg-white/70 px-5 py-3 text-sm font-semibold text-stone-800 hover:bg-white">See how it works</button>
             </div>
           </div>
-          <button type="button" className="landing-scroll-cue" onClick={() => scrollTo("product")}><span>Scroll to explore</span><ChevronDown size={17} /></button>
-        </section>
 
-        <section id="product" className="landing-intro landing-section-shell">
-          <Reveal className="landing-intro-heading">
-            <span className="landing-section-label">A calmer operating system for your day</span>
-            <h2>Four focused tools.<br /><span>One continuous way of thinking.</span></h2>
-          </Reveal>
-          <Reveal className="landing-intro-copy" delay={100}>
-            <p>Most work gets fragmented before it gets finished. Taskr gives each kind of thinking a place, then keeps those places close enough to work together.</p>
-            <div className="landing-intro-stat"><strong>01</strong><span>capture<br />everything</span></div>
-          </Reveal>
-        </section>
-
-        <section id="how-it-works" className="landing-feature-list landing-section-shell">
-          {featureRows.map(({ id, eyebrow, title, body, icon: Icon, accent, bullets }, index) => (
-            <Reveal key={id} className={`landing-feature-row ${index % 2 ? "is-reversed" : ""}`}>
-              <div className={`landing-feature-visual accent-${accent}`}>
-                <div className="landing-feature-visual-glow" />
-                <ProductPreview type={id} />
-                <div className="landing-feature-number">{String(index + 1).padStart(2, "0")}</div>
-              </div>
-              <div className="landing-feature-copy">
-                <div className="landing-feature-eyebrow"><Icon size={16} /> {eyebrow}</div>
-                <h3>{title}</h3>
-                <p>{body}</p>
-                <ul>{bullets.map((bullet) => <li key={bullet}><Check size={15} /> {bullet}</li>)}</ul>
-              </div>
-            </Reveal>
-          ))}
-        </section>
-
-        <section className="landing-manifesto">
-          <div className="landing-section-shell landing-manifesto-inner">
-            <Reveal>
-              <span className="landing-section-label">Designed for momentum</span>
-              <h2>Clarity is not a destination.<br /><em>It is a better starting point.</em></h2>
-            </Reveal>
-            <Reveal className="landing-manifesto-aside" delay={120}>
-              <Layers3 size={22} />
-              <p>From the first rough note to the final receipt, Taskr keeps the details close and the interface out of the way.</p>
-            </Reveal>
-          </div>
-        </section>
-
-        <section className="landing-cta landing-section-shell">
-          <Reveal className="landing-cta-card">
-            <div className="landing-cta-mark"><BrandLogo className="landing-cta-logo" tone="dark" /></div>
-            <div>
-              <span className="landing-section-label">Your next clear day starts here</span>
-              <h2>Build a workspace<br /><em>that moves with you.</em></h2>
-            </div>
-            <button type="button" className="landing-primary-cta" onClick={() => onOpenAuth("signup")}>Create your workspace <ArrowRight size={18} /></button>
-          </Reveal>
-        </section>
-      </main>
-
-      <footer id="footer" className="landing-footer">
-        <div className="landing-footer-top landing-section-shell">
-          <div className="landing-footer-intro"><p>A focused home for the work that is still becoming.</p></div>
-          <div className="landing-footer-links"><div><strong>Explore</strong><button type="button" onClick={() => scrollTo("product")}>Product</button><button type="button" onClick={() => scrollTo("how-it-works")}>How it works</button></div><div><strong>Get started</strong><button type="button" onClick={() => onOpenAuth("signin")}>Sign in</button><button type="button" onClick={() => onOpenAuth("signup")}>Create account</button></div></div>
+          <button type="button" data-hero-hint onClick={() => scrollTo("features")} className="absolute bottom-8 flex flex-col items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-400">
+            Scroll <ChevronDown className="h-4 w-4 animate-bounce" />
+          </button>
         </div>
-        <div className="landing-footer-wordmark" aria-hidden="true"><BrandLogo className="landing-footer-large-logo taskr-footer-wordmark" tone="light" /></div>
-        <div className="landing-footer-bottom landing-section-shell"><span>© {new Date().getFullYear()} Taskr</span><span>Made for the work in progress.</span></div>
+      </section>
+
+      {/* Features */}
+      <div id="features" className="mx-auto max-w-6xl scroll-mt-16 px-4 sm:px-6">
+        <div className="mx-auto max-w-2xl pb-6 pt-24 text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Inside taskr</p>
+          <h2 className="mt-4 text-[clamp(32px,4.6vw,56px)] font-medium leading-[1.05] tracking-[-0.04em]">Everything you juggle, <em className="font-display font-normal italic">in one place.</em></h2>
+        </div>
+        {FEATURES.map(({ id, kicker, title, body, points, Demo }, index) => (
+          <section key={id} id={`feature-${id}`} data-feature={id} className="grid min-h-[110vh] items-center gap-10 py-24 md:grid-cols-2 md:gap-16 lg:py-32">
+            <div data-feature-copy className={index % 2 ? "md:order-2" : ""}>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">{String(index + 1).padStart(2, "0")} · {kicker}</p>
+              <h3 className="mt-4 text-[clamp(30px,3.8vw,48px)] font-medium leading-[1.05] tracking-[-0.04em] [&_em]:font-display [&_em]:font-normal [&_em]:italic">{title}</h3>
+              <p className="mt-5 max-w-md text-[15px] leading-relaxed text-stone-600">{body}</p>
+              <ul className="mt-6 space-y-2.5">
+                {points.map((point) => (
+                  <li key={point} className="flex items-center gap-2.5 text-sm font-medium text-stone-700">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-md bg-stone-900 text-amber-400"><Check className="h-3 w-3" strokeWidth={3} /></span>{point}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className={`relative ${index % 2 ? "md:order-1" : ""}`}>
+              <div aria-hidden className="absolute -inset-6 rounded-[40px] bg-gradient-to-br from-amber-200/50 via-cream-100 to-transparent" />
+              <div className="relative"><Demo /></div>
+            </div>
+          </section>
+        ))}
+      </div>
+
+      {/* Catchphrase — drawn as you scroll */}
+      <section id="fastr" data-phrase className="relative h-[380vh] scroll-mt-16">
+        <div className="sticky top-0 flex h-screen flex-col items-center justify-center overflow-hidden bg-stone-900 px-4 text-white">
+          <div aria-hidden className="pointer-events-none absolute -bottom-40 left-1/2 h-[420px] w-[720px] -translate-x-1/2 rounded-full bg-amber-400/20 blur-[120px]" />
+          <svg viewBox={CATCHPHRASE_VIEWBOX} className="relative w-[min(92vw,900px)] overflow-visible" role="img" aria-label="do it fastr with taskr">
+            {CATCHPHRASE_GLYPHS.map((glyph, i) => (
+              <path key={i} className="phrase-glyph" d={glyph.d} fill={glyph.accent ? "#ffc71d" : "#fbf9f4"} stroke={glyph.accent ? "#ffc71d" : "#fbf9f4"} strokeWidth="1.6" strokeLinejoin="round" />
+            ))}
+          </svg>
+          <span data-phrase-under aria-hidden className="relative mt-6 block h-1.5 w-40 origin-left rounded-full bg-amber-400" />
+          <p className="relative mt-8 max-w-md text-center text-[15px] text-stone-400">Less switching between apps. More getting things off your list.</p>
+        </div>
+      </section>
+
+      {/* Call to action */}
+      <section className="px-4 py-28 sm:px-6">
+        <div className="mx-auto flex max-w-5xl flex-col items-center rounded-[32px] border border-stone-200/80 bg-white px-6 py-16 text-center shadow-[0_30px_80px_-40px_rgba(28,27,25,0.35)]">
+          <BrandLogo size={40} markClassName="text-stone-900" />
+          <h2 className="mt-8 max-w-xl text-[clamp(30px,4vw,48px)] font-medium leading-[1.05] tracking-[-0.04em]">Clear your head. <em className="font-display font-normal italic">Start today.</em></h2>
+          <p className="mt-4 max-w-md text-[15px] text-stone-600">Free to use. Try it as a guest in one click — no email needed until you want to keep your work.</p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <button type="button" onClick={() => onOpenAuth("signup")} className="inline-flex items-center gap-2 rounded-xl bg-stone-900 px-5 py-3 text-sm font-semibold text-white hover:bg-stone-800">Create your space <ArrowRight className="h-4 w-4" /></button>
+            <button type="button" onClick={() => onOpenAuth("signin")} className="rounded-xl border border-stone-300 px-5 py-3 text-sm font-semibold text-stone-800 hover:bg-stone-50">I have an account</button>
+          </div>
+        </div>
+      </section>
+
+      <footer className="border-t border-stone-200/70">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 py-8 text-sm text-stone-500 sm:flex-row sm:px-6">
+          <BrandLogo size={18} markClassName="text-stone-900" wordClassName="text-stone-900" />
+          <p>© {new Date().getFullYear()} taskr · Sticker · Finance · Workspace · Flow</p>
+        </div>
       </footer>
     </div>
   );
 }
-
-export default LandingPage;

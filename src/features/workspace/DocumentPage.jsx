@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { AlertTriangle, ArrowLeft, Loader2, RotateCcw } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Loader2, RotateCcw } from "../../lib/icons";
 import SaveStatus from "../../components/ui/SaveStatus";
 import { LinkedItemsButton } from "../links/LinkedItems";
 import { toast } from "sonner";
@@ -57,19 +57,19 @@ function LoadedDocument({ row }) {
     }
   };
 
-  useEffect(() => { document.title = `${title || "Untitled document"} · TASKR`; return () => { document.title = "TASKR"; }; }, [title]);
+  useEffect(() => { document.title = `${title || "Untitled document"} · taskr`; return () => { document.title = "taskr"; }; }, [title]);
 
   return (
     <div className="flex h-[calc(100vh-56px)] min-h-0 flex-col lg:h-screen">
-      <header className="flex flex-none items-center gap-3 border-b border-slate-200 bg-white px-4 py-2.5">
-        <Link to="/workspace" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800" aria-label="All documents" title="All documents"><ArrowLeft className="h-4 w-4" /></Link>
+      <header className="flex flex-none items-center gap-3 border-b border-stone-200 bg-white px-4 py-2.5">
+        <Link to="/workspace" className="rounded-lg p-1.5 text-stone-500 hover:bg-stone-100 hover:text-stone-800" aria-label="All documents" title="All documents"><ArrowLeft className="h-4 w-4" /></Link>
         <input
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
           aria-label="Document title"
           placeholder="Untitled document"
-          className="min-w-0 flex-1 rounded-md bg-transparent px-1 text-lg font-bold text-slate-900 outline-none hover:bg-slate-50 focus:bg-slate-50 focus:ring-2 focus:ring-blue-200"
+          className="min-w-0 flex-1 rounded-md bg-transparent px-1 text-lg font-bold text-stone-900 outline-none hover:bg-stone-50 focus:bg-stone-50 focus:ring-2 focus:ring-amber-200"
         />
         <LinkedItemsButton type="document" id={row.id} />
         <SaveStatus status={autosave.status} />
@@ -127,11 +127,11 @@ export default function DocumentPage() {
   if (error) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-center">
-        <p className="text-sm text-slate-600 dark:text-slate-300">{error}</p>
-        <Link to="/workspace" className="text-sm font-semibold text-blue-600 hover:underline">Back to documents</Link>
+        <p className="text-sm text-stone-600 dark:text-stone-300">{error}</p>
+        <Link to="/workspace" className="text-sm font-semibold text-amber-700 hover:underline">Back to documents</Link>
       </div>
     );
   }
-  if (!row) return <div className="flex min-h-[60vh] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-blue-500" /></div>;
+  if (!row) return <div className="flex min-h-[60vh] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-amber-500" /></div>;
   return <LoadedDocument key={row.id} row={row} />;
 }
