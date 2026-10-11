@@ -13,6 +13,10 @@
 </p>
 
 <p align="center">
+  <a href="https://trytaskr.vercel.app"><strong>🚀 Try it live → trytaskr.vercel.app</strong></a>
+</p>
+
+<p align="center">
   <img alt="React 19" src="https://img.shields.io/badge/React-19-1c1b19?logo=react&logoColor=ffc71d">
   <img alt="Vite 7" src="https://img.shields.io/badge/Vite-7-1c1b19?logo=vite&logoColor=ffc71d">
   <img alt="Tailwind CSS 4" src="https://img.shields.io/badge/Tailwind_CSS-4-1c1b19?logo=tailwindcss&logoColor=ffc71d">
@@ -77,6 +81,10 @@ Around them sit a **Home** dashboard, a **command palette** (<kbd>Ctrl</kbd>/<kb
 <img src="docs/images/sign-in.png" alt="The sign-in page: a dark panel with an animation on the left and the sign-in form on the right" width="900">
 
 Email and password, Google, or **try it as a guest** in one click (add an email later in Settings to keep your work). A short animation confirms every successful sign-in or sign-up before the app slides in.
+
+> **Signing in with Google?** taskr's Google sign-in is still in testing, so only approved Gmail accounts can use it.
+> To get access, [request it from the admin](https://github.com/Van5hdeep/Taskr/issues/new?title=Google%20sign-in%20access%20request&body=Please%20add%20my%20Gmail%20address%20as%20a%20test%20user%20for%20taskr%27s%20Google%20sign-in.%0A%0AGmail%3A%20) with the Gmail address you want to use.
+> Email/password sign-up and **Try it as a guest** work for everyone right away.
 
 <img src="docs/images/catchphrase.png" alt="do it fastr with taskr" width="900">
 
@@ -220,6 +228,8 @@ docs/images/            README images
 ---
 
 ## Deployment
+
+The live app is hosted on **Vercel** at <https://trytaskr.vercel.app> and redeploys automatically from `main`. Vercel needs the two `VITE_SUPABASE_*` environment variables, and [`vercel.json`](vercel.json) sends every route to the app so refreshes and sign-in redirects work. Add the live URL (with `/**`) to Supabase **Authentication → URL Configuration**.
 
 The GitHub Actions workflows in [`.github/workflows`](.github/workflows) build the app and deploy it to **Firebase Hosting**: pull requests get a preview channel, and pushes to `main` go live.
 
