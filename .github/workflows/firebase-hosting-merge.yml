@@ -11,6 +11,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Vite 7 needs Node 20.19+; pin the LTS so CI doesn't drift with the runner image.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
       - run: npm ci && npm run build
         env:
           # Browser-safe Supabase settings, stored as GitHub repository secrets.
