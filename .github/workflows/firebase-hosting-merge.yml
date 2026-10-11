@@ -9,6 +9,9 @@ on:
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
+    env:
+      # Secrets can't be read in `if:`; expose whether the deploy credential exists.
+      HAS_FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_TASKR_WORKSPACE != '' }}
     steps:
       - uses: actions/checkout@v4
       # Vite 7 needs Node 20.19+; pin the LTS so CI doesn't drift with the runner image.
@@ -21,7 +24,11 @@ jobs:
           # Browser-safe Supabase settings, stored as GitHub repository secrets.
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-      - uses: FirebaseExtended/action-hosting-deploy@v0
+      - name: Deploy skipped — Firebase credential not configured
+        if: env.HAS_FIREBASE_SA != 'true'
+        run: echo "::warning::Add the FIREBASE_SERVICE_ACCOUNT_TASKR_WORKSPACE repository secret to enable Firebase deploys."
+      - if: env.HAS_FIREBASE_SA == 'true'
+        uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_TASKR_WORKSPACE }}
