@@ -1,0 +1,8 @@
+<!-- TASKR logo option: Nodes -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="currentColor">
+  <rect class="tx-link" x="12" y="9" width="40" height="9" rx="4.5"/>
+  <rect class="tx-link" x="27.5" y="13" width="9" height="38" rx="4.5"/>
+  <circle class="tx-n1" cx="11" cy="13.5" r="9"/>
+  <circle class="tx-n2" cx="53" cy="13.5" r="9"/>
+  <circle class="tx-n4" cx="32" cy="52" r="9"/>
+</svg>

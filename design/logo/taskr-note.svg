@@ -1,0 +1,11 @@
+<!-- TASKR logo option: Folded note -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="currentColor">
+  <defs>
+    <mask id="tick-note" maskUnits="userSpaceOnUse">
+      <rect width="64" height="64" fill="#fff"/>
+      <path class="tx-tick" d="M20 31.5 L28 39.5 L43 23.5" fill="none" stroke="#000" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round" pathLength="1"/>
+    </mask>
+  </defs>
+  <path mask="url(#tick-note)" d="M15 6 H49 A9 9 0 0 1 58 15 V38 L38 58 H15 A9 9 0 0 1 6 49 V15 A9 9 0 0 1 15 6 Z"/>
+  <path class="tx-fold" d="M58 44 V51 A7 7 0 0 1 51 58 H44 Z" opacity=".55"/>
+</svg>

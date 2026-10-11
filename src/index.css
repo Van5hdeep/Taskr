@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Dark variants follow the app's theme toggle (html.dark), not only the OS setting. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: "DM Sans", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
@@ -11,6 +14,23 @@
   --color-crimson-light: #ef4444;
   --color-surface: #f8fafc;
   --color-surface-dark: #0f172a;
+
+  --font-brand: "Sora", "DM Sans", system-ui, sans-serif;
+  --font-display: "Instrument Serif", Georgia, serif;
+
+  /* Brand: charcoal ink, sunflower accent, warm cream surfaces. */
+  --color-amber-300: #ffd95c;
+  --color-amber-400: #ffc71d;
+  --color-amber-500: #f2b400;
+  --color-cream-50: #fbf9f4;
+  --color-cream-100: #f5f2ea;
+  --color-cream-200: #ebe6da;
+
+  /* Dark mode: warm graphite surfaces, lightest last. */
+  --color-ink-950: #0f0e0d;
+  --color-ink-900: #161513;
+  --color-ink-850: #1c1b18;
+  --color-ink-800: #26241f;
 }
 
 @layer base {
@@ -68,4 +88,321 @@
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
     background-color: rgba(37, 99, 235, 0.55);
   }
+
+  /* ── Floating animation for empty state icon ── */
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  /* ── Sticker interaction states ── */
+  .sticker-dragging {
+    z-index: 9999 !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(37, 99, 235, 0.15);
+    transform: scale(1.02);
+    opacity: 0.92;
+    cursor: grabbing !important;
+    transition: box-shadow 0.2s ease, opacity 0.2s ease;
+  }
+
+  .sticker-selected {
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.4), 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+  }
+
+  .sticker-idle {
+    cursor: grab;
+    transition: box-shadow 0.2s ease, transform 0.15s ease;
+  }
+
+  .sticker-idle:hover {
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+
+  /* ── Resize handles ── */
+  .resize-handle {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    z-index: 20;
+    background: transparent;
+  }
+
+  .resize-handle::after {
+    content: '';
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(37, 99, 235, 0.6);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .sticker-wrapper:hover .resize-handle::after,
+  .sticker-selected .resize-handle::after {
+    opacity: 1;
+  }
+
+  .resize-handle-nw { top: -4px; left: -4px; cursor: nwse-resize; }
+  .resize-handle-ne { top: -4px; right: -4px; cursor: nesw-resize; }
+  .resize-handle-sw { bottom: -4px; left: -4px; cursor: nesw-resize; }
+  .resize-handle-se { bottom: -4px; right: -4px; cursor: nwse-resize; }
+
+  /* ── Typing indicator (pulse wave) ── */
+  @keyframes typing-wave {
+    0%, 60%, 100% {
+      transform: translateY(0);
+      opacity: 0.4;
+    }
+    30% {
+      transform: translateY(-6px);
+      opacity: 1;
+    }
+  }
+
+  .typing-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    display: inline-block;
+    animation: typing-wave 1.4s ease-in-out infinite;
+  }
+
+  .typing-dot:nth-child(2) { animation-delay: 0.15s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.3s; }
+
+  /* ── Office-style 8-point resize handles ── */
+  .resize-handle-n { top: -4px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+  .resize-handle-s { bottom: -4px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+  .resize-handle-e { top: 50%; right: -4px; transform: translateY(-50%); cursor: ew-resize; }
+  .resize-handle-w { top: 50%; left: -4px; transform: translateY(-50%); cursor: ew-resize; }
+
+  /* Override previous resize handle styles for the new square ones */
+  .resize-handle {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    z-index: 20;
+    background: transparent;
+  }
+
+  .resize-handle::after {
+    content: '';
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background: white;
+    border: 1px solid rgba(37, 99, 235, 1);
+    border-radius: 0;
+    opacity: 0;
+    transition: opacity 0.1s ease;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .block-selected .resize-handle::after,
+  .sticker-wrapper:hover .resize-handle::after,
+  .sticker-selected .resize-handle::after {
+    opacity: 1;
+  }
+
+  /* ── Workspace Locked State ── */
+  .workspace-locked {
+    cursor: default !important;
+  }
+  .workspace-locked * {
+    cursor: default !important;
+  }
+
+  /* ── A4 document container ── */
+  .workspace-document {
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ── Table Crisp (Office-style) ── */
+  .table-crisp {
+    border-collapse: collapse;
+    border: 1px solid #000000;
+    background: transparent;
+  }
+  .table-crisp td, .table-crisp th {
+    border: 1px solid #000000;
+  }
+
+  /* ── FadeIn animation for secondary toolbar ── */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Bottom bar styling ── */
+  .workspace-bottom-bar {
+    @apply flex-none h-11 bg-white border-t border-slate-200 px-4 flex items-center justify-between text-slate-500 text-sm;
+    z-index: 50;
+  }
+
+  /* ── Block selected state for resize handles ── */
+  .block-selected .resize-handle::after {
+    opacity: 1;
+  }
+  .block-selected:hover .resize-handle::after {
+    opacity: 1;
+  }
+
+  /* ── Range input styling for zoom/stroke sliders ── */
+  input[type="range"] {
+    appearance: none;
+    height: 4px;
+    background: #e2e8f0;
+    border-radius: 2px;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    background: #2563eb;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    background: #2563eb;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+}
+
+/* ── Sign-in motion ── */
+.auth-panel-in { animation: auth-panel-in .7s cubic-bezier(.2,.8,.2,1) both; }
+.auth-form-in > * { animation: auth-rise .55s cubic-bezier(.2,.8,.2,1) both; }
+.auth-form-in > *:nth-child(2) { animation-delay: .06s; }
+.auth-form-in > *:nth-child(3) { animation-delay: .12s; }
+.auth-form-in > *:nth-child(4) { animation-delay: .18s; }
+.auth-glow { animation: auth-glow 9s ease-in-out infinite alternate; }
+.auth-card-float { animation: auth-float 6s ease-in-out infinite; }
+@keyframes auth-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -10px; } }
+.auth-success { animation: auth-fade .35s ease-out both; }
+.auth-success-text { animation: auth-rise .5s .9s cubic-bezier(.2,.8,.2,1) both; }
+.success-quad .quad-tile { animation: success-tile .45s cubic-bezier(.3,1.5,.5,1) both; }
+.success-quad .quad-tile-1 { animation-delay: .05s; }
+.success-quad .quad-tile-3 { animation-delay: .15s; }
+.success-quad .quad-tile-4 { animation-delay: .25s; }
+.success-quad .quad-tile-2 { animation: success-lift .6s .35s cubic-bezier(.3,1.4,.5,1) both; }
+.success-badge { animation: success-badge .45s .7s cubic-bezier(.3,1.6,.5,1) both; }
+.success-tick { stroke-dasharray: 1; animation: success-draw .35s .95s ease-out both; }
+@keyframes success-tile { from { opacity: 0; transform: translateY(-14px) scale(.6); } }
+@keyframes success-lift { from { opacity: 0; transform: translate(6px, -16px) rotate(-30deg) scale(.6); } }
+@keyframes success-badge { from { opacity: 0; transform: scale(0); } }
+@keyframes success-draw { from { stroke-dashoffset: 1; } }
+@keyframes auth-panel-in { from { opacity: 0; transform: translateX(-24px) scale(.98); } }
+@keyframes auth-rise { from { opacity: 0; transform: translateY(14px); } }
+@keyframes auth-fade { from { opacity: 0; } }
+@keyframes auth-glow { to { transform: translate(-60px, 80px) scale(1.15); } }
+@media (prefers-reduced-motion: reduce) {
+  .auth-panel-in, .auth-form-in > *, .auth-glow, .auth-card-float, .auth-success, .auth-success-text,
+  .success-quad .quad-tile, .success-badge, .success-tick { animation: none; }
+}
+
+/* Excalidraw is used as TASKR's ink renderer only. Its app chrome is hidden
+   so the existing A4 workspace controls remain the sole interface. */
+.taskr-excalidraw-ink,
+.taskr-excalidraw-ink .excalidraw,
+.taskr-excalidraw-ink .excalidraw .App {
+  background: transparent !important;
+}
+
+.taskr-excalidraw-ink .layer-ui__wrapper,
+.taskr-excalidraw-ink .App-menu,
+.taskr-excalidraw-ink .App-bottom-bar,
+.taskr-excalidraw-ink .fixed-canvas-background,
+.taskr-excalidraw-ink .welcome-screen-center {
+  display: none !important;
+}
+
+.taskr-excalidraw-ink .excalidraw {
+  --color-canvas-background: transparent;
+}
+
+@media print {
+  body {
+    background-color: white !important;
+    background-image: none !important;
+    color: black !important;
+  }
+  .no-print, header, aside, .sidebar-menu, .app-header {
+    display: none !important;
+  }
+  @page {
+    margin: 1cm;
+    size: A4;
+  }
+  #finance-workspace {
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: auto !important;
+  }
+}
+
+/* ── Workspace page backgrounds ── */
+.page-lined { background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 31px, #c7d2fe 31px, #c7d2fe 32px); background-position: 0 72px; background-size: 100% 32px; }
+.page-grid { background-image: linear-gradient(#e2e8f0 1px, transparent 1px), linear-gradient(90deg, #e2e8f0 1px, transparent 1px); background-size: 24px 24px; }
+.page-dotted { background-image: radial-gradient(#94a3b8 1.1px, transparent 1.2px); background-size: 24px 24px; }
+
+/* ── Rich text inside Workspace text boxes (Tiptap) ── */
+.taskr-rich { line-height: 1.5; word-break: break-word; }
+.taskr-rich > * + * { margin-top: 0.35em; }
+.taskr-rich h1 { font-size: 1.9em; font-weight: 800; line-height: 1.2; letter-spacing: -0.01em; }
+.taskr-rich h2 { font-size: 1.45em; font-weight: 750; line-height: 1.25; }
+.taskr-rich h3 { font-size: 1.15em; font-weight: 700; }
+.taskr-rich ul { list-style: disc; padding-left: 1.4em; }
+.taskr-rich ol { list-style: decimal; padding-left: 1.4em; }
+.taskr-rich li > p { margin: 0; }
+.taskr-rich a { color: #2563eb; text-decoration: underline; }
+.taskr-rich mark { border-radius: 2px; padding: 0 1px; }
+.taskr-rich blockquote { border-left: 3px solid #cbd5e1; padding-left: 0.8em; color: #475569; }
+.taskr-rich code { background: #f1f5f9; border-radius: 4px; padding: 0 3px; font-size: 0.9em; }
+.taskr-rich ul[data-type="taskList"] { list-style: none; padding-left: 0.2em; }
+.taskr-rich ul[data-type="taskList"] li { display: flex; gap: 0.5em; align-items: flex-start; }
+.taskr-rich ul[data-type="taskList"] li > label { margin-top: 0.2em; user-select: none; }
+.taskr-rich ul[data-type="taskList"] li > div { flex: 1; }
+.taskr-rich ul[data-type="taskList"] li[data-checked="true"] > div { text-decoration: line-through; color: #94a3b8; }
+.taskr-rich p.is-editor-empty:first-child::before { content: "Type here…"; color: #94a3b8; float: left; height: 0; pointer-events: none; }
+
+/* ── Flow editor ── */
+.react-flow .taskr-flow-handle { width: 10px; height: 10px; border: 2px solid #ffffff; background: #2563eb; opacity: 0; transition: opacity 120ms ease; }
+.react-flow__node:hover .taskr-flow-handle, .react-flow__node.selected .taskr-flow-handle, .react-flow.connecting .taskr-flow-handle { opacity: 1; }
+.react-flow__edge-textbg { stroke: #e2e8f0; stroke-width: 1; }
+
+/* ── Brand motion ── */
+.quad-tile { transform-box: fill-box; transform-origin: center; }
+.quad-loading .quad-tile { animation: quad-pulse 1.2s ease-in-out infinite; }
+.quad-loading .quad-tile-2 { animation-delay: .15s; }
+.quad-loading .quad-tile-4 { animation-delay: .3s; }
+.quad-loading .quad-tile-3 { animation-delay: .45s; }
+@keyframes quad-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 40% { opacity: .35; transform: scale(.82); } }
+
+/* Pages ease in when you arrive (also the landing after sign-in). */
+.taskr-page-enter { animation: page-enter .45s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes page-enter { from { opacity: 0; transform: translateY(10px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .quad-loading .quad-tile, .taskr-page-enter { animation: none; }
+  .hero-tile-lift { transform: rotate(12deg); }
+  .hero-tick { display: none; }
 }
