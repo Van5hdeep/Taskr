@@ -15,7 +15,7 @@ const TOPICS = [
   { id: "Account & data", icon: ShieldCheck, blurb: "Theme, passwords, downloading or resetting your data." },
 ];
 
-const ISSUES_URL = "https://github.com/Van5hdeep/Task-tracker/issues/new";
+const ISSUES_URL = "https://github.com/Van5hdeep/Taskr/issues/new";
 const normalise = (text) => text.toLowerCase().replace(/\s+/g, " ").trim();
 
 function Article({ article, open, onToggle }) {

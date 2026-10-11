@@ -108,8 +108,8 @@ Email and password, Google, or **try it as a guest** in one click (add an email 
 ### 2. Install
 
 ```bash
-git clone https://github.com/Van5hdeep/Task-tracker.git
-cd Task-tracker
+git clone https://github.com/Van5hdeep/Taskr.git
+cd Taskr
 npm install
 ```
 
