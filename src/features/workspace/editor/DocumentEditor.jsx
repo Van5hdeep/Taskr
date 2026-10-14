@@ -556,10 +556,10 @@ export default function DocumentEditor({ documentId, title, content, commit, und
         if (touches.size === 2) { inkRef.current?.cancel(); pinch = null; }
         return;
       }
-      if (event.pointerType !== "pen" || event.button > 0) return;
+      if (event.pointerType !== "pen" || (event.button > 0 && event.button !== 5)) return;
       if (!event.target.closest?.("[data-page]") || event.target.closest("[data-block-id]")) return;
       if (!event.inkClaimed && tool === "select" && !locked && inkRef.current?.begin(event)) event.inkClaimed = true;
-      if (event.inkClaimed && tool !== "eraser") armStylusHold(event);
+      if (event.inkClaimed && tool !== "eraser" && event.button !== 5 && !(event.buttons & 32)) armStylusHold(event);
     };
     scroller.addEventListener("pointerdown", onDown);
     return () => {
@@ -586,10 +586,21 @@ export default function DocumentEditor({ documentId, title, content, commit, und
     const onWheel = (event) => {
       if (!(event.ctrlKey || event.metaKey)) return;
       event.preventDefault();
-      zoomAround(zoomRef.current - event.deltaY * 0.002, event.clientX, event.clientY);
+      // Trackpad pinch arrives as small ctrl+wheel deltas, a mouse wheel notch as ~100.
+      zoomAround(zoomRef.current * Math.exp(-event.deltaY * (Math.abs(event.deltaY) >= 50 ? 0.0015 : 0.006)), event.clientX, event.clientY);
     };
+    // Safari (Mac laptops) reports trackpad pinch as gesture events instead.
+    let gestureStart = 1;
+    const onGestureStart = (event) => { event.preventDefault(); gestureStart = zoomRef.current; };
+    const onGestureChange = (event) => { event.preventDefault(); zoomAround(gestureStart * event.scale, event.clientX, event.clientY); };
     element.addEventListener("wheel", onWheel, { passive: false });
-    return () => element.removeEventListener("wheel", onWheel);
+    element.addEventListener("gesturestart", onGestureStart);
+    element.addEventListener("gesturechange", onGestureChange);
+    return () => {
+      element.removeEventListener("wheel", onWheel);
+      element.removeEventListener("gesturestart", onGestureStart);
+      element.removeEventListener("gesturechange", onGestureChange);
+    };
   }, []);
 
   useEffect(() => { if (tool !== "select") { setEditingId(null); if (!CREATION_TOOLS.includes(tool)) setSelection([]); } }, [tool]);

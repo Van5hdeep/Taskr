@@ -142,7 +142,8 @@ export default function InkCanvas({ ref, elements, onCommit, tool, color, width,
     const [x, y] = toDoc(event.clientX, event.clientY);
     const pressure = pen ? event.pressure || 0.5 : 0.5;
     const g = {
-      kind: currentTool === "eraser" ? "erase" : "draw",
+      // The stylus's eraser end (button 5 / buttons&32) erases whatever tool is active.
+      kind: currentTool === "eraser" || event.button === 5 || (event.buttons & 32) ? "erase" : "draw",
       pointerId: event.pointerId, pen, simulate: !pen, touch: event.pointerType === "touch",
       highlighter: currentTool === "highlighter", color: currentColor, width: currentWidth,
       points: [[x, y]], pressures: [pressure], predicted: [], raw: null,
