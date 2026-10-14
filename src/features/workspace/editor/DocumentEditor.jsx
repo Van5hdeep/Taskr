@@ -41,6 +41,7 @@ const HIGHLIGHTER_SIZES = [
   { id: "wide", label: "Wide", width: 5 },
 ];
 const visiblePx = (width) => Math.max(0.5, Math.round(width * 4.25 * 2) / 2);
+const MAX_ZOOM = 8; // 800%
 const INK_TOOLS = ["pen", "highlighter", "eraser"];
 
 const hasImageDrag = (dataTransfer) => ["Files", "text/uri-list", "text/html"].some((type) => [...dataTransfer.types].includes(type));
@@ -487,7 +488,7 @@ export default function DocumentEditor({ documentId, title, content, commit, und
   const zoomAround = useCallback((next, clientX, clientY) => {
     const wrap = zoomWrapRef.current;
     const scroller = scrollRef.current;
-    const value = Math.round(Math.min(3, Math.max(0.25, next)) * 100) / 100;
+    const value = Math.round(Math.min(MAX_ZOOM, Math.max(0.25, next)) * 100) / 100;
     if (!wrap || !scroller || value === zoomRef.current) return;
     const before = wrap.getBoundingClientRect();
     const docX = (clientX - before.left) / zoomRef.current;
@@ -979,9 +980,9 @@ export default function DocumentEditor({ documentId, title, content, commit, und
           <ToolButton title="Delete this page" onClick={removePage} disabled={locked || pages.length <= 1}><Trash2 className="h-4 w-4" /></ToolButton>
         </div>
         <div className="flex items-center gap-1">
-          <ToolButton title="Zoom out" onClick={() => setZoom((value) => Math.max(0.25, Math.round((value - 0.1) * 100) / 100))}><Minus className="h-4 w-4" /></ToolButton>
-          <input type="range" min="25" max="300" step="5" value={Math.round(zoom * 100)} onChange={(event) => setZoom(Number(event.target.value) / 100)} className="w-24 accent-amber-600" aria-label="Zoom" />
-          <ToolButton title="Zoom in" onClick={() => setZoom((value) => Math.min(3, Math.round((value + 0.1) * 100) / 100))}><Plus className="h-4 w-4" /></ToolButton>
+          <ToolButton title="Zoom out" onClick={() => setZoom((value) => Math.max(0.25, Math.round((value / 1.2) * 100) / 100))}><Minus className="h-4 w-4" /></ToolButton>
+          <input type="range" min="25" max={MAX_ZOOM * 100} step="5" value={Math.round(zoom * 100)} onChange={(event) => setZoom(Number(event.target.value) / 100)} className="w-24 accent-amber-600" aria-label="Zoom" />
+          <ToolButton title="Zoom in" onClick={() => setZoom((value) => Math.min(MAX_ZOOM, Math.round(value * 1.2 * 100) / 100))}><Plus className="h-4 w-4" /></ToolButton>
           <span className="w-10 text-right text-xs font-semibold">{Math.round(zoom * 100)}%</span>
           <ToolButton title="Fit width" onClick={() => { const width = scrollRef.current?.clientWidth ?? A4_WIDTH; setZoom(Math.round(Math.min(2, Math.max(0.25, (width - 48) / A4_WIDTH)) * 100) / 100); }}><Maximize2 className="h-4 w-4" /></ToolButton>
         </div>
@@ -989,9 +990,9 @@ export default function DocumentEditor({ documentId, title, content, commit, und
 
       {zoomBar && (
         <div data-zoombar className="fixed z-[95] flex items-center gap-1 rounded-full border border-stone-200 bg-white px-2 py-1 shadow-xl" style={{ left: Math.max(8, Math.min(window.innerWidth - 320, zoomBar.x - 150)), top: Math.max(8, zoomBar.y - 64) }}>
-          <ToolButton title="Zoom out" onClick={() => zoomAround(zoom - 0.25, zoomBar.x, zoomBar.y)}><Minus className="h-4 w-4" /></ToolButton>
-          <input type="range" min="25" max="300" step="5" value={Math.round(zoom * 100)} onChange={(event) => zoomAround(Number(event.target.value) / 100, zoomBar.x, zoomBar.y)} className="w-28 accent-amber-600" aria-label="Zoom" />
-          <ToolButton title="Zoom in" onClick={() => zoomAround(zoom + 0.25, zoomBar.x, zoomBar.y)}><Plus className="h-4 w-4" /></ToolButton>
+          <ToolButton title="Zoom out" onClick={() => zoomAround(zoom / 1.25, zoomBar.x, zoomBar.y)}><Minus className="h-4 w-4" /></ToolButton>
+          <input type="range" min="25" max={MAX_ZOOM * 100} step="5" value={Math.round(zoom * 100)} onChange={(event) => zoomAround(Number(event.target.value) / 100, zoomBar.x, zoomBar.y)} className="w-28 accent-amber-600" aria-label="Zoom" />
+          <ToolButton title="Zoom in" onClick={() => zoomAround(zoom * 1.25, zoomBar.x, zoomBar.y)}><Plus className="h-4 w-4" /></ToolButton>
           <span className="w-10 text-center text-xs font-semibold">{Math.round(zoom * 100)}%</span>
           <ToolButton title="Close zoom" onClick={() => setZoomBar(null)}><X className="h-4 w-4" /></ToolButton>
         </div>
