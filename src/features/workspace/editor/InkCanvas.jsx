@@ -1,6 +1,6 @@
 import { useEffect, useImperativeHandle, useLayoutEffect, useRef } from "react";
 import { A4_WIDTH } from "../model";
-import { createStroke, drawElement, drawPoints, strokeHit } from "./ink/render";
+import { createStroke, drawPoints, loopToBox, paintInk, paintLiveHighlight, strokeHit } from "./ink/render";
 import { touchMayDraw } from "./ink/input";
 
 const MAX_SIDE = 16000;
@@ -19,6 +19,7 @@ export default function InkCanvas({ ref, elements, onCommit, tool, color, width,
   const liveRef = useRef(null);
   const live = useRef(null); // the gesture in progress
   const erased = useRef(new Set());
+  const skipColor = useRef(null); // highlight colour being redrawn live, so it is not painted twice
   const frame = useRef(0);
   const scaleRef = useRef(1);
   const props = useRef({});
@@ -34,7 +35,7 @@ export default function InkCanvas({ ref, elements, onCommit, tool, color, width,
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const s = scaleRef.current;
     ctx.setTransform(s, 0, 0, s, 0, 0);
-    for (const element of props.current.elements) if (!element.isDeleted) drawElement(ctx, element, { ghost: erased.current.has(element.id) });
+    paintInk(ctx, props.current.elements, { ghost: erased.current, skipHighlightColor: skipColor.current });
   };
 
   // Backing store follows zoom (crisp ink when zoomed in), capped for huge documents.
@@ -76,7 +77,11 @@ export default function InkCanvas({ ref, elements, onCommit, tool, color, width,
     const last = g.pressures[g.pressures.length - 1];
     const points = [...g.points, ...g.predicted];
     const pressures = [...g.pressures, ...g.predicted.map(() => last)];
-    drawPoints(ctx, { x: 0, y: 0, points, pressures, simulatePressure: g.simulate, strokeColor: g.color, strokeWidth: g.width, opacity: g.highlighter ? 35 : 100 });
+    const liveElement = { x: 0, y: 0, points, pressures, simulatePressure: g.simulate, strokeColor: g.color, strokeWidth: g.width, opacity: g.highlighter ? 35 : 100 };
+    // Highlights are drawn opaque on this canvas, which is shown at 35% — so a stroke over an older
+    // mark of the same colour never looks darker.
+    if (g.highlighter) paintLiveHighlight(ctx, props.current.elements, g.color, liveElement, erased.current);
+    else drawPoints(ctx, liveElement);
   };
   const schedule = () => { if (!frame.current) frame.current = requestAnimationFrame(paintLive); };
 
@@ -118,7 +123,9 @@ export default function InkCanvas({ ref, elements, onCommit, tool, color, width,
     cancelAnimationFrame(frame.current);
     frame.current = 0;
     clearLive();
+    if (g.highlighter) { liveRef.current.style.opacity = ""; liveRef.current.style.mixBlendMode = ""; skipColor.current = null; }
     if (!commit) {
+      if (g.highlighter) redrawBase();
       if (g.kind === "erase" && erased.current.size) { erased.current = new Set(); redrawBase(); }
       return;
     }
@@ -130,7 +137,11 @@ export default function InkCanvas({ ref, elements, onCommit, tool, color, width,
     // End exactly where the pen lifted.
     if (g.raw) { g.points.push([g.raw[0], g.raw[1]]); g.pressures.push(g.raw[2]); }
     if (g.points.length === 1) { g.points.push([...g.points[0]]); g.pressures.push(g.pressures[0]); }
-    onCommit([...current, createStroke({ points: g.points, pressures: g.pressures, simulatePressure: g.simulate, color: g.color, width: g.width, highlighter: g.highlighter })]);
+    const stroke = createStroke({ points: g.points, pressures: g.pressures, simulatePressure: g.simulate, color: g.color, width: g.width, highlighter: g.highlighter });
+    // Circling text with the highlighter snaps to a clean rounded box over what was enclosed.
+    const box = g.highlighter ? loopToBox(g.points) : null;
+    if (box) Object.assign(stroke, { shape: "box", ...box, points: [[0, 0], [box.width, box.height]], pressures: [0.5, 0.5], simulatePressure: true });
+    onCommit([...current, stroke]);
   };
 
   /** Start writing/erasing from a pointer-down (or a pointer that is already down). */
@@ -166,6 +177,12 @@ export default function InkCanvas({ ref, elements, onCommit, tool, color, width,
     // A second finger means pinch/pan, not writing.
     g.onOtherDown = (down) => { if (g.touch && down.pointerType === "touch" && down.pointerId !== g.pointerId) finish(false); };
     live.current = g;
+    if (g.highlighter && g.kind === "draw") {
+      liveRef.current.style.opacity = "0.35";
+      liveRef.current.style.mixBlendMode = "multiply";
+      skipColor.current = g.color;
+      redrawBase();
+    }
     window.addEventListener("pointermove", g.onMove);
     window.addEventListener("pointerup", g.onUp);
     window.addEventListener("pointercancel", g.onCancel);

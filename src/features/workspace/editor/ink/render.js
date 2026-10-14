@@ -50,8 +50,16 @@ export function pathFromOutline(outline) {
   return path;
 }
 
+export const isBox = (element) => element.shape === "box";
+
 export function elementPath(element, complete = true) {
   if (complete && outlineCache.has(element)) return outlineCache.get(element);
+  if (isBox(element)) {
+    const box = new Path2D();
+    box.roundRect(element.x, element.y, element.width, element.height, Math.min(12, element.height / 2, element.width / 2));
+    outlineCache.set(element, box);
+    return box;
+  }
   const path = pathFromOutline(getStroke(strokeInput(element), outlineOptions(element, complete)));
   if (complete) outlineCache.set(element, path);
   return path;
@@ -64,6 +72,87 @@ export function drawElement(ctx, element, { ghost = false, complete = true } = {
   ctx.fillStyle = element.strokeColor;
   ctx.fill(elementPath(element, complete));
   ctx.restore();
+}
+
+let scratch = null;
+function scratchFor(canvas) {
+  scratch ??= document.createElement("canvas");
+  if (scratch.width !== canvas.width || scratch.height !== canvas.height) { scratch.width = canvas.width; scratch.height = canvas.height; }
+  return scratch;
+}
+
+/**
+ * Paints one highlight colour as a single flat layer: marks of that colour are
+ * unioned opaque on a scratch canvas, then composited once. Overlapping marks
+ * therefore never darken the shade. `extra` are already-built paths (live stroke).
+ */
+function paintHighlightGroup(ctx, color, opacity, paths) {
+  const layer = scratchFor(ctx.canvas);
+  const lctx = layer.getContext("2d");
+  const transform = ctx.getTransform();
+  lctx.setTransform(1, 0, 0, 1, 0, 0);
+  lctx.clearRect(0, 0, layer.width, layer.height);
+  lctx.setTransform(transform);
+  lctx.fillStyle = color;
+  for (const path of paths) lctx.fill(path);
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = opacity / 100;
+  ctx.globalCompositeOperation = "multiply";
+  ctx.drawImage(layer, 0, 0);
+  ctx.restore();
+}
+
+/** Highlights first (flat per colour), then pen strokes on top. */
+export function paintInk(ctx, elements, { ghost = new Set(), skipHighlightColor = null } = {}) {
+  const groups = new Map();
+  const pens = [];
+  for (const element of elements) {
+    if (element.isDeleted) continue;
+    if (!isHighlighter(element)) { pens.push(element); continue; }
+    if (ghost.has(element.id)) { drawElement(ctx, element, { ghost: true }); continue; }
+    if (element.strokeColor === skipHighlightColor) continue;
+    const group = groups.get(element.strokeColor) ?? { opacity: element.opacity, paths: [] };
+    group.paths.push(elementPath(element));
+    groups.set(element.strokeColor, group);
+  }
+  for (const [color, group] of groups) paintHighlightGroup(ctx, color, group.opacity, group.paths);
+  for (const element of pens) drawElement(ctx, element, { ghost: ghost.has(element.id) });
+}
+
+/** Live highlighter: the colour's existing marks plus the stroke being drawn, flat. */
+export function paintLiveHighlight(ctx, elements, color, liveElement, ghost) {
+  const paths = elements.filter((element) => !element.isDeleted && isHighlighter(element) && element.strokeColor === color && !ghost.has(element.id)).map((element) => elementPath(element));
+  paths.push(elementPath(liveElement, false));
+  const lctx = ctx;
+  lctx.fillStyle = color;
+  for (const path of paths) lctx.fill(path);
+}
+
+/** Closed loop drawn with the highlighter → the rounded box it encloses, or null. */
+export function loopToBox(points) {
+  if (points.length < 8) return null;
+  let minX = Infinity; let minY = Infinity; let maxX = -Infinity; let maxY = -Infinity; let length = 0;
+  for (let i = 0; i < points.length; i += 1) {
+    const [x, y] = points[i];
+    minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+    if (i) length += Math.hypot(x - points[i - 1][0], y - points[i - 1][1]);
+  }
+  const w = maxX - minX;
+  const h = maxY - minY;
+  if (w < 14 || h < 8) return null;
+  const gap = Math.hypot(points[0][0] - points[points.length - 1][0], points[0][1] - points[points.length - 1][1]);
+  if (gap > 0.35 * Math.max(w, h)) return null; // not closed
+  let area = 0;
+  for (let i = 0; i < points.length; i += 1) {
+    const [x1, y1] = points[i];
+    const [x2, y2] = points[(i + 1) % points.length];
+    area += x1 * y2 - x2 * y1;
+  }
+  if (Math.abs(area) / 2 < 0.4 * w * h) return null; // a scribble, not a loop around something
+  if (length < 1.3 * (w + h)) return null;
+  const pad = 2;
+  return { x: minX - pad, y: minY - pad, width: w + pad * 2, height: h + pad * 2 };
 }
 
 /** Brush a stroke would draw: in progress, so never cached. */
@@ -97,6 +186,7 @@ const segmentDistance = (px, py, ax, ay, bx, by) => {
 export function strokeHit(element, x, y, radius) {
   const b = boundsOf(element);
   if (x < b.minX - radius || x > b.maxX + radius || y < b.minY - radius || y > b.maxY + radius) return false;
+  if (isBox(element)) return x >= element.x - radius && x <= element.x + element.width + radius && y >= element.y - radius && y <= element.y + element.height + radius;
   const reach = radius + (element.strokeWidth * SIZE_FACTOR) / 2;
   const { points } = element;
   if (points.length === 1) return Math.hypot(x - element.x - points[0][0], y - element.y - points[0][1]) <= reach;
@@ -131,10 +221,6 @@ export function renderInkPage(ink, pageIndex, pageCount, scale) {
   const ctx = canvas.getContext("2d");
   ctx.scale(scale, scale);
   ctx.translate(0, -pageIndex * PAGE_STEP);
-  for (const element of ink) {
-    if (element.isDeleted) continue;
-    const index = Math.min(pageCount - 1, Math.max(0, Math.floor((element.y ?? 0) / PAGE_STEP)));
-    if (index === pageIndex) drawElement(ctx, element);
-  }
+  paintInk(ctx, ink.filter((element) => Math.min(pageCount - 1, Math.max(0, Math.floor((element.y ?? 0) / PAGE_STEP))) === pageIndex));
   return canvas;
 }
