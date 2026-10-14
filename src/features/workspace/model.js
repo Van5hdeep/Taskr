@@ -66,11 +66,11 @@ function migrateBlock(block, firstPageId) {
   return base;
 }
 
-// ─── Ink (Excalidraw elements, document coordinates) ──────────────────────
+// ─── Ink (freedraw elements, document coordinates) ──────────────────────
 //
-// Ink is a list of Excalidraw elements positioned in document space: page i
-// spans y ∈ [i·PAGE_STEP, i·PAGE_STEP + A4_HEIGHT). Excalidraw's own
-// restoreElements() fills in any fields missing from migrated elements.
+// Ink is a list of freedraw elements positioned in document space: page i
+// spans y ∈ [i·PAGE_STEP, i·PAGE_STEP + A4_HEIGHT). Strokes
+// are rendered with perfect-freehand (editor/ink/render.js).
 
 export function inkPageIndex(element, pageCount) {
   return Math.min(pageCount - 1, Math.max(0, Math.floor((element.y ?? 0) / PAGE_STEP)));
@@ -78,7 +78,7 @@ export function inkPageIndex(element, pageCount) {
 
 const randomInt = () => Math.floor(Math.random() * 2 ** 31);
 
-/** Legacy canvas annotation (absolute points) → Excalidraw freedraw skeleton. */
+/** Legacy canvas annotation (absolute points) → freedraw element. */
 export function annotationToFreedraw(path) {
   if (path.isEraser || !path.points?.length) return null;
   const x = Math.min(...path.points.map((p) => p.x));
