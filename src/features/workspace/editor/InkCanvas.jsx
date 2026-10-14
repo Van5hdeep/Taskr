@@ -4,7 +4,7 @@ import { createStroke, drawElement, drawPoints, strokeHit } from "./ink/render";
 import { touchMayDraw } from "./ink/input";
 
 const MAX_SIDE = 16000;
-const MAX_AREA = 90_000_000;
+const MAX_AREA = 16_000_000; // iPad Safari refuses canvases above ~16.7M px (it draws nothing)
 const ERASER_RADIUS = 9; // document px
 
 /**

@@ -2,7 +2,7 @@
 // while the stylus is in range, so touches are ignored around pen activity.
 const state = { penSeen: false, penDown: 0, lastPenAt: 0 };
 const PEN_QUIET_MS = 700;
-const PALM_SIZE = 36; // CSS px contact width/height that is a palm, not a fingertip
+const PALM_SIZE = 90; // CSS px contact width/height that is a palm; fingertips on some touchscreens report 40+
 
 export function trackPen() {
   const onEvent = (event) => {
