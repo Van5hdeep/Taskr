@@ -67,7 +67,7 @@ export default function AboutSection() {
 
       <Panel title="Built with">
         <p className="text-sm leading-relaxed text-stone-600 dark:text-stone-400">
-          React, Vite and Tailwind CSS on the front end; Supabase for sign-in, the database and file storage. Workspace ink uses Excalidraw, text uses Tiptap,
+          React, Vite and Tailwind CSS on the front end; Supabase for sign-in, the database and file storage. Workspace ink uses perfect-freehand, text uses Tiptap,
           Flow uses React Flow, and icons come from Phosphor.
         </p>
         <p className="mt-3 text-xs text-stone-400">© {new Date().getFullYear()} taskr</p>

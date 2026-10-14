@@ -33,7 +33,7 @@ describe("migrateDocument", () => {
     expect(v2.blocks.find((block) => block.id === "tb").data).toEqual([["a", ""], ["", ""]]);
   });
 
-  it("keeps Excalidraw ink and converts legacy canvas annotations into freedraw elements", () => {
+  it("keeps saved ink and converts legacy canvas annotations into freedraw elements", () => {
     expect(v2.ink.map((element) => element.type)).toEqual(["freedraw", "rectangle", "freedraw"]);
     const converted = v2.ink[2];
     expect(converted).toMatchObject({ x: 10, y: PAGE_STEP + 50, width: 10, height: 10, strokeColor: "#f00", strokeWidth: 3, isDeleted: false });

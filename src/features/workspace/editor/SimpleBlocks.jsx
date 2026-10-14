@@ -96,7 +96,7 @@ export function ImageContent({ block, previewUrl }) {
   const uploading = !block.assetPath && !block.src;
   return (
     <div className="relative h-full w-full overflow-hidden" style={{ backgroundColor: block.fill || "transparent", border: `${block.strokeWidth || 1}px solid ${block.stroke || "transparent"}` }}>
-      {url && <img src={url} alt={block.alt || ""} crossOrigin="anonymous" draggable={false} className="pointer-events-none h-full w-full select-none object-contain" />}
+      {url && <img src={url} alt={block.alt || ""} {...(block.src ? {} : { crossOrigin: "anonymous" })} draggable={false} style={{ opacity: block.opacity ?? 1 }} className="pointer-events-none h-full w-full select-none object-contain" />}
       {error && <div className="flex h-full w-full items-center justify-center bg-stone-100 text-stone-400"><ImageOff className="h-6 w-6" /></div>}
       {uploading && (
         <div className="absolute inset-0 flex items-center justify-center bg-white/50 text-xs font-semibold text-stone-600" data-export-ignore>

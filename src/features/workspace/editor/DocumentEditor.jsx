@@ -1,18 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import {
   AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignStartHorizontal, AlignStartVertical,
   ArrowDown, ArrowUp, BringToFront, ChevronDown, ChevronLeft, ChevronRight, Copy, Download, Eraser, FileImage, FileText,
   Grid3x3, Highlighter, Image as ImageIcon, Loader2, Lock, Maximize2, Minus, MousePointer2, PenLine, Plus, Printer, Redo,
-  SendToBack, Shapes, StickyNote, Trash2, Type, Undo, Unlock,
+  SendToBack, Shapes, StickyNote, Trash2, Type, Undo, Unlock, X,
 } from "../../../lib/icons";
 import { toast } from "sonner";
 import { useConfirm } from "../../../components/ui/ConfirmDialog";
 import { formatSupabaseError } from "../../../lib/supabase";
-import { uploadImage } from "../api";
+import { dataUrlToFile, uploadImage } from "../api";
 import { A4_HEIGHT, A4_WIDTH, deletePage, movePage, PAGE_GAP, PAGE_MARGIN, PAGE_STEP, PAGE_STYLES, uid } from "../model";
 import { alignBlocks, distributeBlocks, intersects, normalizeRect, resizeRect, snapMove, snapTargets, unionBounds } from "../geometry";
 import BlockFrame from "./BlockFrame";
-import InkLayer from "./InkLayer";
+import InkCanvas from "./InkCanvas";
+import { touchRejected, trackPen } from "./ink/input";
 import TextBlock from "./TextBlock";
 import TextFormatBar from "./TextFormatBar";
 import { ImageContent, NOTE_COLORS, resizeTable, SHAPE_TYPES, ShapeContent, StickerContent, TableContent } from "./SimpleBlocks";
@@ -23,7 +25,7 @@ const INK_COLORS = ["#1e1e1e", "#2563eb", "#dc2626", "#16a34a", "#9333ea", "#ea5
 const HIGHLIGHT_COLORS = ["#facc15", "#4ade80", "#60a5fa", "#f472b6", "#c084fc"];
 const CREATION_TOOLS = ["text", "table", "shape", "note"];
 
-// Excalidraw draws freedraw about 4.25 × strokeWidth pixels thick, so note-
+// Ink is drawn about 4.25 × strokeWidth pixels thick, so note-
 // taking needs strokeWidths well below 1. Labels show the visible thickness.
 const PEN_SIZES = [
   { id: "xfine", label: "Extra fine", width: 0.25 },
@@ -39,8 +41,10 @@ const HIGHLIGHTER_SIZES = [
   { id: "wide", label: "Wide", width: 5 },
 ];
 const visiblePx = (width) => Math.max(0.5, Math.round(width * 4.25 * 2) / 2);
+const MAX_ZOOM = 8; // 800%
 const INK_TOOLS = ["pen", "highlighter", "eraser"];
 
+const hasImageDrag = (dataTransfer) => ["Files", "text/uri-list", "text/html"].some((type) => [...dataTransfer.types].includes(type));
 const isTypingTarget = (element) => element && (["INPUT", "TEXTAREA", "SELECT"].includes(element.tagName) || element.isContentEditable);
 
 function ToolButton({ active, onClick, title, children, disabled }) {
@@ -89,6 +93,8 @@ function Swatches({ colors, value, onPick, allowNone = false }) {
 
 const Divider = () => <span className="mx-1 h-6 w-px bg-stone-200" />;
 
+const PLUS_CURSOR = `url("data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28"><path d="M14 5v18M5 14h18" stroke="white" stroke-width="5" stroke-linecap="round"/><path d="M14 5v18M5 14h18" stroke="#b45309" stroke-width="2.5" stroke-linecap="round"/></svg>')}") 14 14, copy`;
+
 export default function DocumentEditor({ documentId, title, content, commit, undo, redo, canUndo, canRedo, pageStyle, onPageStyleChange }) {
   const confirm = useConfirm();
   const [tool, setTool] = useState("select");
@@ -111,6 +117,10 @@ export default function DocumentEditor({ documentId, title, content, commit, und
   const [previewUrls, setPreviewUrls] = useState({});
   const [exporting, setExporting] = useState(null);
   const gesture = useRef(null);
+  const [zoomBar, setZoomBar] = useState(null); // { x, y }: screen point the stylus is holding
+  const inkRef = useRef(null);
+  const zoomWrapRef = useRef(null);
+  const zoomRef = useRef(1);
   const pageRefs = useRef(new Map());
   const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -222,6 +232,42 @@ export default function DocumentEditor({ documentId, title, content, commit, und
     }
   }, [addBlocks, commit, documentId]);
 
+  /** Image dragged in from a web page / another tab: no file, only a URL. */
+  const insertRemoteImage = useCallback(async (src, pageId, point) => {
+    const size = await new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve({ w: img.naturalWidth || 300, h: img.naturalHeight || 200 });
+      img.onerror = () => resolve(null);
+      img.src = src;
+    });
+    if (!size) { toast.error("That image couldn't be loaded."); return; }
+    const width = Math.min(size.w, A4_WIDTH - PAGE_MARGIN * 2, 420);
+    const height = width * (size.h / size.w);
+    addBlocks([{ id: uid(), type: "image", pageId, x: Math.max(PAGE_MARGIN, point.x - width / 2), y: Math.max(PAGE_MARGIN, point.y - height / 2), width, height, src }]);
+  }, [addBlocks]);
+
+  /** Files from the desktop, or an image URL from another tab/page. Reads the drop synchronously, then resolves. */
+  const dropImages = (dataTransfer, pageId, point) => {
+    const files = [...(dataTransfer.files ?? [])].filter((file) => file.type.startsWith("image/"));
+    if (files.length) { insertImages(files, pageId, point); return true; }
+    const html = dataTransfer.getData("text/html");
+    const list = dataTransfer.getData("text/uri-list") || dataTransfer.getData("text/plain");
+    const fromHtml = html.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1]?.replace(/&amp;/g, "&");
+    const src = fromHtml ?? list.split(/\r?\n/).find((line) => line && !line.startsWith("#"))?.trim();
+    if (!src) return false;
+    const looksLikeImage = Boolean(fromHtml) || src.startsWith("data:image/") || /\.(png|jpe?g|gif|webp|svg|avif)(\?|#|$)/i.test(src);
+    if (!looksLikeImage) return false;
+    (async () => {
+      try {
+        const blob = src.startsWith("data:") ? (await dataUrlToFile(src)) : await (await fetch(src)).blob();
+        const file = blob instanceof File ? blob : new File([blob], "image", { type: blob.type });
+        if (file.type.startsWith("image/")) { insertImages([file], pageId, point); return; }
+      } catch { /* cross-origin: fall back to linking the image */ }
+      if (/^https?:/.test(src)) insertRemoteImage(src, pageId, point);
+    })();
+    return true;
+  };
+
   const pageCenter = () => ({ pageId: pages[currentPage]?.id ?? pages[0].id, point: { x: A4_WIDTH / 2, y: A4_HEIGHT / 3 } });
 
   // ─── Gestures ──────────────────────────────────────────────────────────
@@ -265,12 +311,23 @@ export default function DocumentEditor({ documentId, title, content, commit, und
     setPreview({ type: mode, ids, dx: 0, dy: 0, rect: null, guides: [] });
   };
 
+  // Nothing on the document yet: the page cursor becomes a "+" and a click starts a text box.
+  const startHere = !locked && tool === "select" && blocks.length === 0 && ink.length === 0;
+
   const onPagePointerDown = (event, page, pageIndex) => {
     if (locked || event.button !== 0 || INK_TOOLS.includes(tool)) return;
     if (event.target.closest("[data-block-id]")) return;
+    // Stylus ink and finger pan/zoom are handled natively by the scroll area (see the effect below).
+    if (tool === "select" && event.pointerType === "pen") { setCurrentPage(pageIndex); setEditingId(null); setSelection([]); return; }
+    if (tool === "select" && event.pointerType === "touch" && (touchRejected(event) || !startHere)) return;
     setCurrentPage(pageIndex);
     setEditingId(null);
     const point = pagePoint(event, page.id);
+    if (tool === "select" && startHere) {
+      gesture.current = { type: "create", tool: "text", auto: true, pageId: page.id, origin: point, startX: event.clientX, startY: event.clientY };
+      setPreview({ type: "create", pageId: page.id, rect: { ...point, w: 0, h: 0 } });
+      return;
+    }
     if (tool === "select") {
       const base = event.shiftKey ? selection : [];
       if (!event.shiftKey) setSelection([]);
@@ -292,6 +349,12 @@ export default function DocumentEditor({ documentId, title, content, commit, und
       const dx = (event.clientX - g.startX) / zoom;
       const dy = (event.clientY - g.startY) / zoom;
       if (Math.abs(dx) > 1 || Math.abs(dy) > 1) g.moved = true;
+      if (g.auto && Math.hypot(event.clientX - g.startX, event.clientY - g.startY) > 4) {
+        gesture.current = null;
+        setPreview(null);
+        inkRef.current?.begin({ clientX: g.startX, clientY: g.startY, pointerId: event.pointerId, pointerType: event.pointerType, pressure: event.pressure });
+        return;
+      }
       if (g.type === "move") {
         const snapped = event.altKey ? { dx, dy, guides: [] } : snapMove(g.box, dx, dy, g.targets, 6 / zoom);
         g.dx = snapped.dx;
@@ -352,12 +415,13 @@ export default function DocumentEditor({ documentId, title, content, commit, und
   const createFromGesture = (g) => {
     const dragged = g.moved && g.rect && g.rect.w > 8 && g.rect.h > 8;
     const at = (w, h) => (dragged ? { x: g.rect.x, y: g.rect.y, width: Math.max(w.min, g.rect.w), height: Math.max(h.min, g.rect.h) } : { x: g.origin.x, y: g.origin.y, width: w.default, height: h.default });
+    const kind = g.tool ?? tool;
     const id = uid();
     let block;
-    if (tool === "text") block = { id, type: "text", pageId: g.pageId, framed: false, fontSize: 16, doc: { type: "doc", content: [{ type: "paragraph" }] }, ...at({ min: 60, default: 320 }, { min: 32, default: 60 }) };
-    if (tool === "table") block = { id, type: "table", pageId: g.pageId, rows: tableSize.rows, cols: tableSize.cols, headerRow: false, data: Array.from({ length: tableSize.rows }, () => Array(tableSize.cols).fill("")), fill: "transparent", stroke: "#334155", strokeWidth: 1, ...at({ min: tableSize.cols * 40, default: Math.min(A4_WIDTH - PAGE_MARGIN * 2, tableSize.cols * 110) }, { min: tableSize.rows * 24, default: tableSize.rows * 34 }) };
-    if (tool === "shape") block = { id, type: "shape", shapeType, pageId: g.pageId, fill: "transparent", stroke: "#2563eb", strokeWidth: 2, ...at({ min: 16, default: shapeType === "circle" ? 100 : 140 }, { min: 16, default: shapeType === "line" || shapeType === "arrow" ? 40 : 100 }) };
-    if (tool === "note") block = { id, type: "sticker", pageId: g.pageId, color: noteColor, text: "", ...at({ min: 80, default: 180 }, { min: 80, default: 180 }) };
+    if (kind === "text") block = { id, type: "text", pageId: g.pageId, framed: false, fontSize: 16, doc: { type: "doc", content: [{ type: "paragraph" }] }, ...at({ min: 60, default: 320 }, { min: 32, default: 60 }) };
+    if (kind === "table") block = { id, type: "table", pageId: g.pageId, rows: tableSize.rows, cols: tableSize.cols, headerRow: false, data: Array.from({ length: tableSize.rows }, () => Array(tableSize.cols).fill("")), fill: "transparent", stroke: "#334155", strokeWidth: 1, ...at({ min: tableSize.cols * 40, default: Math.min(A4_WIDTH - PAGE_MARGIN * 2, tableSize.cols * 110) }, { min: tableSize.rows * 24, default: tableSize.rows * 34 }) };
+    if (kind === "shape") block = { id, type: "shape", shapeType, pageId: g.pageId, fill: "transparent", stroke: "#2563eb", strokeWidth: 2, ...at({ min: 16, default: shapeType === "circle" ? 100 : 140 }, { min: 16, default: shapeType === "line" || shapeType === "arrow" ? 40 : 100 }) };
+    if (kind === "note") block = { id, type: "sticker", pageId: g.pageId, color: noteColor, text: "", ...at({ min: 80, default: 180 }, { min: 80, default: 180 }) };
     if (!block) return;
     block.x = Math.max(0, Math.min(A4_WIDTH - 20, block.x));
     block.y = Math.max(0, Math.min(A4_HEIGHT - 20, block.y));
@@ -417,16 +481,164 @@ export default function DocumentEditor({ documentId, title, content, commit, und
     };
   });
 
+  // ─── Zoom, finger pan/pinch, stylus ink ───────────────────────────────
+
+  zoomRef.current = zoom;
+  /** Zoom keeping the document point under (clientX, clientY) where it is on screen. */
+  const zoomAround = useCallback((next, clientX, clientY) => {
+    const wrap = zoomWrapRef.current;
+    const scroller = scrollRef.current;
+    const value = Math.round(Math.min(MAX_ZOOM, Math.max(0.25, next)) * 100) / 100;
+    if (!wrap || !scroller || value === zoomRef.current) return;
+    const before = wrap.getBoundingClientRect();
+    const docX = (clientX - before.left) / zoomRef.current;
+    const docY = (clientY - before.top) / zoomRef.current;
+    zoomRef.current = value;
+    flushSync(() => setZoom(value));
+    const after = wrap.getBoundingClientRect();
+    scroller.scrollLeft += after.left + docX * value - clientX;
+    scroller.scrollTop += after.top + docY * value - clientY;
+  }, []);
+
+  useEffect(() => trackPen(), []);
+
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    if (!scroller) return undefined;
+    const touches = new Map();
+    let pinch = null;
+    let inertia = 0;
+    let hold = null;
+    const stopInertia = () => { cancelAnimationFrame(inertia); inertia = 0; };
+    const clearHold = () => {
+      if (!hold) return;
+      clearTimeout(hold.timer);
+      window.removeEventListener("pointermove", hold.onMove);
+      window.removeEventListener("pointerup", hold.clear);
+      window.removeEventListener("pointercancel", hold.clear);
+      hold = null;
+    };
+
+    // Stylus held still for a moment → drop the dot it just made and offer zoom at that point.
+    const armStylusHold = (event) => {
+      clearHold();
+      const start = { x: event.clientX, y: event.clientY };
+      hold = {
+        timer: setTimeout(() => { clearHold(); inkRef.current?.cancel(); setZoomBar({ x: start.x, y: start.y }); }, 520),
+        onMove: (move) => { if (Math.hypot(move.clientX - start.x, move.clientY - start.y) > 6) clearHold(); },
+        clear: clearHold,
+      };
+      window.addEventListener("pointermove", hold.onMove);
+      window.addEventListener("pointerup", hold.clear);
+      window.addEventListener("pointercancel", hold.clear);
+    };
+
+    const onMove = (event) => {
+      const touch = touches.get(event.pointerId);
+      if (!touch) return;
+      const dx = event.clientX - touch.x;
+      const dy = event.clientY - touch.y;
+      touch.x = event.clientX;
+      touch.y = event.clientY;
+      if (touches.size >= 2) {
+        const [a, b] = [...touches.values()];
+        const dist = Math.hypot(a.x - b.x, a.y - b.y);
+        const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        if (!pinch) pinch = { dist, zoom: zoomRef.current, mid };
+        zoomAround(pinch.zoom * (dist / pinch.dist), mid.x, mid.y);
+        scroller.scrollLeft -= mid.x - pinch.mid.x;
+        scroller.scrollTop -= mid.y - pinch.mid.y;
+        pinch.mid = mid;
+      } else if (!touch.claimed) {
+        scroller.scrollLeft -= dx;
+        scroller.scrollTop -= dy;
+        touch.vx = dx;
+        touch.vy = dy;
+      }
+    };
+    const onEnd = (event) => {
+      const touch = touches.get(event.pointerId);
+      if (!touch) return;
+      touches.delete(event.pointerId);
+      pinch = null;
+      if (!touches.size) {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onEnd);
+        window.removeEventListener("pointercancel", onEnd);
+        if (event.type === "pointerup" && !touch.claimed && Math.hypot(touch.vx ?? 0, touch.vy ?? 0) > 3) {
+          let vx = touch.vx;
+          let vy = touch.vy;
+          const glide = () => {
+            scroller.scrollLeft -= vx;
+            scroller.scrollTop -= vy;
+            vx *= 0.93;
+            vy *= 0.93;
+            inertia = Math.hypot(vx, vy) > 0.5 ? requestAnimationFrame(glide) : 0;
+          };
+          inertia = requestAnimationFrame(glide);
+        }
+      }
+    };
+
+    const onDown = (event) => {
+      stopInertia();
+      if (event.pointerType === "touch") {
+        if (touchRejected(event)) return; // palm, or a hand next to the stylus
+        if (!touches.size) {
+          window.addEventListener("pointermove", onMove);
+          window.addEventListener("pointerup", onEnd);
+          window.addEventListener("pointercancel", onEnd);
+        }
+        const onControl = Boolean(event.target.closest?.("[data-block-id], input, textarea, button, [contenteditable=true]"));
+        touches.set(event.pointerId, { x: event.clientX, y: event.clientY, claimed: Boolean(event.inkClaimed) || onControl });
+        if (touches.size === 2) { inkRef.current?.cancel(); pinch = null; }
+        return;
+      }
+      if (event.pointerType !== "pen" || (event.button > 0 && event.button !== 5)) return;
+      if (!event.target.closest?.("[data-page]") || event.target.closest("[data-block-id]")) return;
+      if (!event.inkClaimed && tool === "select" && !locked && inkRef.current?.begin(event)) event.inkClaimed = true;
+      if (event.inkClaimed && tool !== "eraser" && event.button !== 5 && !(event.buttons & 32)) armStylusHold(event);
+    };
+    scroller.addEventListener("pointerdown", onDown);
+    return () => {
+      scroller.removeEventListener("pointerdown", onDown);
+      stopInertia();
+      clearHold();
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onEnd);
+      window.removeEventListener("pointercancel", onEnd);
+    };
+  }, [tool, locked, zoomAround]);
+
+  useEffect(() => {
+    if (!zoomBar) return undefined;
+    const close = (event) => { if (!event.target.closest?.("[data-zoombar]")) setZoomBar(null); };
+    // Registered a tick late so the pointer-up that ends the long press doesn't close it.
+    const timer = setTimeout(() => document.addEventListener("pointerdown", close, true), 0);
+    return () => { clearTimeout(timer); document.removeEventListener("pointerdown", close, true); };
+  }, [zoomBar]);
+
   useEffect(() => {
     const element = scrollRef.current;
     if (!element) return undefined;
     const onWheel = (event) => {
       if (!(event.ctrlKey || event.metaKey)) return;
       event.preventDefault();
-      setZoom((value) => Math.round(Math.min(3, Math.max(0.25, value - event.deltaY * 0.002)) * 100) / 100);
+      // Trackpad pinch arrives as small ctrl+wheel deltas, a mouse wheel notch as ~100.
+      zoomAround(zoomRef.current * Math.exp(-event.deltaY * (Math.abs(event.deltaY) >= 50 ? 0.0015 : 0.006)), event.clientX, event.clientY);
     };
+    // Safari (Mac laptops) reports trackpad pinch as gesture events instead.
+    let gestureStart = 1;
+    const onGestureStart = (event) => { event.preventDefault(); gestureStart = zoomRef.current; };
+    const onGestureChange = (event) => { event.preventDefault(); zoomAround(gestureStart * event.scale, event.clientX, event.clientY); };
     element.addEventListener("wheel", onWheel, { passive: false });
-    return () => element.removeEventListener("wheel", onWheel);
+    element.addEventListener("gesturestart", onGestureStart);
+    element.addEventListener("gesturechange", onGestureChange);
+    return () => {
+      element.removeEventListener("wheel", onWheel);
+      element.removeEventListener("gesturestart", onGestureStart);
+      element.removeEventListener("gesturechange", onGestureChange);
+    };
   }, []);
 
   useEffect(() => { if (tool !== "select") { setEditingId(null); if (!CREATION_TOOLS.includes(tool)) setSelection([]); } }, [tool]);
@@ -647,6 +859,16 @@ export default function DocumentEditor({ documentId, title, content, commit, und
                         {[12, 14, 16, 18, 20, 24, 28, 32].map((size) => <option key={size} value={size}>{size}px text</option>)}
                       </select>
                     )}
+                    {single.type === "image" && (
+                      <>
+                        <span className="text-[11px] font-semibold text-stone-500">Opacity</span>
+                        <input type="range" min="10" max="100" step="5" value={Math.round((single.opacity ?? 1) * 100)} onChange={(event) => patchBlock(single.id, { opacity: Number(event.target.value) / 100 })} className="w-24 accent-amber-600" aria-label="Image opacity" />
+                        <span className="w-9 text-xs tabular-nums text-stone-500">{Math.round((single.opacity ?? 1) * 100)}%</span>
+                        <span className="text-[11px] font-semibold text-stone-500">Size</span>
+                        <input type="range" min="40" max="1200" step="10" value={Math.round(single.width)} onChange={(event) => { const width = Number(event.target.value); patchBlock(single.id, { width, height: (width * single.height) / single.width }); }} className="w-24 accent-amber-600" aria-label="Image size" />
+                        <span className="w-12 text-xs tabular-nums text-stone-500">{Math.round(single.width)}px</span>
+                      </>
+                    )}
                     {single.type === "table" && (
                       <button type="button" onClick={() => patchBlock(single.id, { headerRow: !single.headerRow })} className={`rounded-md px-2 py-1 text-xs font-semibold ${single.headerRow ? "bg-amber-100 text-amber-800" : "text-stone-600 hover:bg-stone-100"}`}>Header row</button>
                     )}
@@ -686,8 +908,17 @@ export default function DocumentEditor({ documentId, title, content, commit, und
       </div>
 
       {/* Pages */}
-      <div ref={scrollRef} onScroll={onScroll} className="relative min-h-0 flex-1 overflow-auto bg-stone-200/70" style={{ cursor: CREATION_TOOLS.includes(tool) ? "crosshair" : undefined }}>
-        <div className="relative mx-auto my-6" style={{ width: A4_WIDTH * zoom, height: documentHeight * zoom }}>
+      <div ref={scrollRef} onScroll={onScroll}
+        onDragOver={(event) => { if (!locked && hasImageDrag(event.dataTransfer)) event.preventDefault(); }}
+        onDrop={(event) => {
+          if (event.defaultPrevented) return;
+          event.preventDefault();
+          if (locked || !hasImageDrag(event.dataTransfer)) return;
+          const { pageId, point } = pageCenter();
+          dropImages(event.dataTransfer, pageId, point);
+        }}
+        className="relative min-h-0 flex-1 overflow-auto bg-stone-200/70" style={{ touchAction: "none", cursor: CREATION_TOOLS.includes(tool) ? "crosshair" : undefined }}>
+        <div ref={zoomWrapRef} className="relative mx-auto my-6" style={{ width: A4_WIDTH * zoom, height: documentHeight * zoom }}>
           <div className="workspace-document absolute left-0 top-0" style={{ width: A4_WIDTH, height: documentHeight, transform: `scale(${zoom})`, transformOrigin: "top left" }}>
             {pages.map((page, index) => (
               <div
@@ -695,13 +926,12 @@ export default function DocumentEditor({ documentId, title, content, commit, und
                 ref={(element) => { if (element) pageRefs.current.set(page.id, element); else pageRefs.current.delete(page.id); }}
                 data-page={index + 1}
                 className={`page-${pageStyle} absolute left-0 overflow-hidden bg-white shadow-[0_10px_24px_rgba(15,23,42,0.16)] ring-1 ring-stone-300`}
-                style={{ top: index * PAGE_STEP, width: A4_WIDTH, height: A4_HEIGHT }}
+                style={{ top: index * PAGE_STEP, width: A4_WIDTH, height: A4_HEIGHT, cursor: startHere ? PLUS_CURSOR : undefined, touchAction: startHere ? "none" : undefined }}
                 onPointerDown={(event) => onPagePointerDown(event, page, index)}
-                onDragOver={(event) => { if (!locked && [...event.dataTransfer.types].includes("Files")) event.preventDefault(); }}
+                onDragOver={(event) => { if (!locked && hasImageDrag(event.dataTransfer)) event.preventDefault(); }}
                 onDrop={(event) => {
-                  if (locked || !event.dataTransfer.files?.length) return;
-                  event.preventDefault();
-                  insertImages(event.dataTransfer.files, page.id, pagePoint(event, page.id));
+                  if (locked || !hasImageDrag(event.dataTransfer)) return;
+                  if (dropImages(event.dataTransfer, page.id, pagePoint(event, page.id))) event.preventDefault();
                 }}
               >
                 {blocks.filter((block) => pageOf(block) === page.id).map(renderBlock)}
@@ -722,7 +952,8 @@ export default function DocumentEditor({ documentId, title, content, commit, und
               </div>
             ))}
 
-            <InkLayer
+            <InkCanvas
+              ref={inkRef}
               elements={ink}
               onCommit={commitInk}
               tool={tool}
@@ -749,13 +980,23 @@ export default function DocumentEditor({ documentId, title, content, commit, und
           <ToolButton title="Delete this page" onClick={removePage} disabled={locked || pages.length <= 1}><Trash2 className="h-4 w-4" /></ToolButton>
         </div>
         <div className="flex items-center gap-1">
-          <ToolButton title="Zoom out" onClick={() => setZoom((value) => Math.max(0.25, Math.round((value - 0.1) * 100) / 100))}><Minus className="h-4 w-4" /></ToolButton>
-          <input type="range" min="25" max="300" step="5" value={Math.round(zoom * 100)} onChange={(event) => setZoom(Number(event.target.value) / 100)} className="w-24 accent-amber-600" aria-label="Zoom" />
-          <ToolButton title="Zoom in" onClick={() => setZoom((value) => Math.min(3, Math.round((value + 0.1) * 100) / 100))}><Plus className="h-4 w-4" /></ToolButton>
+          <ToolButton title="Zoom out" onClick={() => setZoom((value) => Math.max(0.25, Math.round((value / 1.2) * 100) / 100))}><Minus className="h-4 w-4" /></ToolButton>
+          <input type="range" min="25" max={MAX_ZOOM * 100} step="5" value={Math.round(zoom * 100)} onChange={(event) => setZoom(Number(event.target.value) / 100)} className="w-24 accent-amber-600" aria-label="Zoom" />
+          <ToolButton title="Zoom in" onClick={() => setZoom((value) => Math.min(MAX_ZOOM, Math.round(value * 1.2 * 100) / 100))}><Plus className="h-4 w-4" /></ToolButton>
           <span className="w-10 text-right text-xs font-semibold">{Math.round(zoom * 100)}%</span>
           <ToolButton title="Fit width" onClick={() => { const width = scrollRef.current?.clientWidth ?? A4_WIDTH; setZoom(Math.round(Math.min(2, Math.max(0.25, (width - 48) / A4_WIDTH)) * 100) / 100); }}><Maximize2 className="h-4 w-4" /></ToolButton>
         </div>
       </div>
+
+      {zoomBar && (
+        <div data-zoombar className="fixed z-[95] flex items-center gap-1 rounded-full border border-stone-200 bg-white px-2 py-1 shadow-xl" style={{ left: Math.max(8, Math.min(window.innerWidth - 320, zoomBar.x - 150)), top: Math.max(8, zoomBar.y - 64) }}>
+          <ToolButton title="Zoom out" onClick={() => zoomAround(zoom / 1.25, zoomBar.x, zoomBar.y)}><Minus className="h-4 w-4" /></ToolButton>
+          <input type="range" min="25" max={MAX_ZOOM * 100} step="5" value={Math.round(zoom * 100)} onChange={(event) => zoomAround(Number(event.target.value) / 100, zoomBar.x, zoomBar.y)} className="w-28 accent-amber-600" aria-label="Zoom" />
+          <ToolButton title="Zoom in" onClick={() => zoomAround(zoom * 1.25, zoomBar.x, zoomBar.y)}><Plus className="h-4 w-4" /></ToolButton>
+          <span className="w-10 text-center text-xs font-semibold">{Math.round(zoom * 100)}%</span>
+          <ToolButton title="Close zoom" onClick={() => setZoomBar(null)}><X className="h-4 w-4" /></ToolButton>
+        </div>
+      )}
 
       {cellMenu && tableCell && (
         <div className="fixed inset-0 z-[90]" onPointerDown={() => setCellMenu(null)} onContextMenu={(event) => { event.preventDefault(); setCellMenu(null); }}>

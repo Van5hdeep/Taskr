@@ -319,26 +319,6 @@
   .success-quad .quad-tile, .success-badge, .success-tick { animation: none; }
 }
 
-/* Excalidraw is used as TASKR's ink renderer only. Its app chrome is hidden
-   so the existing A4 workspace controls remain the sole interface. */
-.taskr-excalidraw-ink,
-.taskr-excalidraw-ink .excalidraw,
-.taskr-excalidraw-ink .excalidraw .App {
-  background: transparent !important;
-}
-
-.taskr-excalidraw-ink .layer-ui__wrapper,
-.taskr-excalidraw-ink .App-menu,
-.taskr-excalidraw-ink .App-bottom-bar,
-.taskr-excalidraw-ink .fixed-canvas-background,
-.taskr-excalidraw-ink .welcome-screen-center {
-  display: none !important;
-}
-
-.taskr-excalidraw-ink .excalidraw {
-  --color-canvas-background: transparent;
-}
-
 @media print {
   body {
     background-color: white !important;
@@ -406,3 +386,11 @@
   .hero-tile-lift { transform: rotate(12deg); }
   .hero-tick { display: none; }
 }
+
+/* Eraser: a small eraser while hovering; touching starts erasing immediately. */
+.taskr-ink[data-ink-tool="eraser"] {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cg stroke='white' stroke-width='4.5'%3E%3Cpath d='M20 20H9l-5-5a1.5 1.5 0 0 1 0-2.1L13.4 3.6a1.5 1.5 0 0 1 2.1 0l5 5a1.5 1.5 0 0 1 0 2.1L11 20'/%3E%3Cpath d='M8.5 8.5l7 7'/%3E%3C/g%3E%3Cg stroke='%23b45309' stroke-width='2'%3E%3Cpath d='M20 20H9l-5-5a1.5 1.5 0 0 1 0-2.1L13.4 3.6a1.5 1.5 0 0 1 2.1 0l5 5a1.5 1.5 0 0 1 0 2.1L11 20'/%3E%3Cpath d='M8.5 8.5l7 7'/%3E%3C/g%3E%3C/svg%3E") 6 20, auto;
+}
+
+.taskr-ink[data-ink-tool="pen"],
+.taskr-ink[data-ink-tool="highlighter"] { cursor: crosshair; }
