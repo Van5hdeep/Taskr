@@ -9,7 +9,7 @@ import {
 import { toast } from "sonner";
 import { useConfirm } from "../../../components/ui/ConfirmDialog";
 import { formatSupabaseError } from "../../../lib/supabase";
-import { uploadImage } from "../api";
+import { dataUrlToFile, uploadImage } from "../api";
 import { A4_HEIGHT, A4_WIDTH, deletePage, movePage, PAGE_GAP, PAGE_MARGIN, PAGE_STEP, PAGE_STYLES, uid } from "../model";
 import { alignBlocks, distributeBlocks, intersects, normalizeRect, resizeRect, snapMove, snapTargets, unionBounds } from "../geometry";
 import BlockFrame from "./BlockFrame";
@@ -43,6 +43,7 @@ const HIGHLIGHTER_SIZES = [
 const visiblePx = (width) => Math.max(0.5, Math.round(width * 4.25 * 2) / 2);
 const INK_TOOLS = ["pen", "highlighter", "eraser"];
 
+const hasImageDrag = (dataTransfer) => ["Files", "text/uri-list", "text/html"].some((type) => [...dataTransfer.types].includes(type));
 const isTypingTarget = (element) => element && (["INPUT", "TEXTAREA", "SELECT"].includes(element.tagName) || element.isContentEditable);
 
 function ToolButton({ active, onClick, title, children, disabled }) {
@@ -229,6 +230,42 @@ export default function DocumentEditor({ documentId, title, content, commit, und
       }
     }
   }, [addBlocks, commit, documentId]);
+
+  /** Image dragged in from a web page / another tab: no file, only a URL. */
+  const insertRemoteImage = useCallback(async (src, pageId, point) => {
+    const size = await new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve({ w: img.naturalWidth || 300, h: img.naturalHeight || 200 });
+      img.onerror = () => resolve(null);
+      img.src = src;
+    });
+    if (!size) { toast.error("That image couldn't be loaded."); return; }
+    const width = Math.min(size.w, A4_WIDTH - PAGE_MARGIN * 2, 420);
+    const height = width * (size.h / size.w);
+    addBlocks([{ id: uid(), type: "image", pageId, x: Math.max(PAGE_MARGIN, point.x - width / 2), y: Math.max(PAGE_MARGIN, point.y - height / 2), width, height, src }]);
+  }, [addBlocks]);
+
+  /** Files from the desktop, or an image URL from another tab/page. Reads the drop synchronously, then resolves. */
+  const dropImages = (dataTransfer, pageId, point) => {
+    const files = [...(dataTransfer.files ?? [])].filter((file) => file.type.startsWith("image/"));
+    if (files.length) { insertImages(files, pageId, point); return true; }
+    const html = dataTransfer.getData("text/html");
+    const list = dataTransfer.getData("text/uri-list") || dataTransfer.getData("text/plain");
+    const fromHtml = html.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1]?.replace(/&amp;/g, "&");
+    const src = fromHtml ?? list.split(/\r?\n/).find((line) => line && !line.startsWith("#"))?.trim();
+    if (!src) return false;
+    const looksLikeImage = Boolean(fromHtml) || src.startsWith("data:image/") || /\.(png|jpe?g|gif|webp|svg|avif)(\?|#|$)/i.test(src);
+    if (!looksLikeImage) return false;
+    (async () => {
+      try {
+        const blob = src.startsWith("data:") ? (await dataUrlToFile(src)) : await (await fetch(src)).blob();
+        const file = blob instanceof File ? blob : new File([blob], "image", { type: blob.type });
+        if (file.type.startsWith("image/")) { insertImages([file], pageId, point); return; }
+      } catch { /* cross-origin: fall back to linking the image */ }
+      if (/^https?:/.test(src)) insertRemoteImage(src, pageId, point);
+    })();
+    return true;
+  };
 
   const pageCenter = () => ({ pageId: pages[currentPage]?.id ?? pages[0].id, point: { x: A4_WIDTH / 2, y: A4_HEIGHT / 3 } });
 
@@ -821,6 +858,16 @@ export default function DocumentEditor({ documentId, title, content, commit, und
                         {[12, 14, 16, 18, 20, 24, 28, 32].map((size) => <option key={size} value={size}>{size}px text</option>)}
                       </select>
                     )}
+                    {single.type === "image" && (
+                      <>
+                        <span className="text-[11px] font-semibold text-stone-500">Opacity</span>
+                        <input type="range" min="10" max="100" step="5" value={Math.round((single.opacity ?? 1) * 100)} onChange={(event) => patchBlock(single.id, { opacity: Number(event.target.value) / 100 })} className="w-24 accent-amber-600" aria-label="Image opacity" />
+                        <span className="w-9 text-xs tabular-nums text-stone-500">{Math.round((single.opacity ?? 1) * 100)}%</span>
+                        <span className="text-[11px] font-semibold text-stone-500">Size</span>
+                        <input type="range" min="40" max="1200" step="10" value={Math.round(single.width)} onChange={(event) => { const width = Number(event.target.value); patchBlock(single.id, { width, height: (width * single.height) / single.width }); }} className="w-24 accent-amber-600" aria-label="Image size" />
+                        <span className="w-12 text-xs tabular-nums text-stone-500">{Math.round(single.width)}px</span>
+                      </>
+                    )}
                     {single.type === "table" && (
                       <button type="button" onClick={() => patchBlock(single.id, { headerRow: !single.headerRow })} className={`rounded-md px-2 py-1 text-xs font-semibold ${single.headerRow ? "bg-amber-100 text-amber-800" : "text-stone-600 hover:bg-stone-100"}`}>Header row</button>
                     )}
@@ -860,7 +907,16 @@ export default function DocumentEditor({ documentId, title, content, commit, und
       </div>
 
       {/* Pages */}
-      <div ref={scrollRef} onScroll={onScroll} className="relative min-h-0 flex-1 overflow-auto bg-stone-200/70" style={{ touchAction: "none", cursor: CREATION_TOOLS.includes(tool) ? "crosshair" : undefined }}>
+      <div ref={scrollRef} onScroll={onScroll}
+        onDragOver={(event) => { if (!locked && hasImageDrag(event.dataTransfer)) event.preventDefault(); }}
+        onDrop={(event) => {
+          if (event.defaultPrevented) return;
+          event.preventDefault();
+          if (locked || !hasImageDrag(event.dataTransfer)) return;
+          const { pageId, point } = pageCenter();
+          dropImages(event.dataTransfer, pageId, point);
+        }}
+        className="relative min-h-0 flex-1 overflow-auto bg-stone-200/70" style={{ touchAction: "none", cursor: CREATION_TOOLS.includes(tool) ? "crosshair" : undefined }}>
         <div ref={zoomWrapRef} className="relative mx-auto my-6" style={{ width: A4_WIDTH * zoom, height: documentHeight * zoom }}>
           <div className="workspace-document absolute left-0 top-0" style={{ width: A4_WIDTH, height: documentHeight, transform: `scale(${zoom})`, transformOrigin: "top left" }}>
             {pages.map((page, index) => (
@@ -871,11 +927,10 @@ export default function DocumentEditor({ documentId, title, content, commit, und
                 className={`page-${pageStyle} absolute left-0 overflow-hidden bg-white shadow-[0_10px_24px_rgba(15,23,42,0.16)] ring-1 ring-stone-300`}
                 style={{ top: index * PAGE_STEP, width: A4_WIDTH, height: A4_HEIGHT, cursor: startHere ? PLUS_CURSOR : undefined, touchAction: startHere ? "none" : undefined }}
                 onPointerDown={(event) => onPagePointerDown(event, page, index)}
-                onDragOver={(event) => { if (!locked && [...event.dataTransfer.types].includes("Files")) event.preventDefault(); }}
+                onDragOver={(event) => { if (!locked && hasImageDrag(event.dataTransfer)) event.preventDefault(); }}
                 onDrop={(event) => {
-                  if (locked || !event.dataTransfer.files?.length) return;
-                  event.preventDefault();
-                  insertImages(event.dataTransfer.files, page.id, pagePoint(event, page.id));
+                  if (locked || !hasImageDrag(event.dataTransfer)) return;
+                  if (dropImages(event.dataTransfer, page.id, pagePoint(event, page.id))) event.preventDefault();
                 }}
               >
                 {blocks.filter((block) => pageOf(block) === page.id).map(renderBlock)}
