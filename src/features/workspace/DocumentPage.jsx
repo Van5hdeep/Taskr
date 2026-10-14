@@ -16,6 +16,8 @@ function LoadedDocument({ row }) {
   const bufferKey = `taskr_unsaved_document_${row.id}`;
   const history = useDocumentHistory(migrateDocument(row.content));
   const [title, setTitle] = useState(row.title);
+  const titleRef = useRef(title);
+  titleRef.current = title;
   const [pageStyle, setPageStyle] = useState(row.page_style ?? "plain");
   const updatedAt = useRef(row.updated_at);
   const [recovery, setRecovery] = useState(() => {
@@ -28,7 +30,11 @@ function LoadedDocument({ row }) {
 
   const save = useCallback(async (snapshot, options) => {
     const result = await api.saveDocument(row.id, { title: snapshot.title.trim() || "Untitled document", content: snapshot.content, page_style: snapshot.page_style }, updatedAt.current, options);
-    if (!result.conflict) updatedAt.current = result.updated_at;
+    if (!result.conflict) {
+      updatedAt.current = result.updated_at;
+      // The name was taken: show the numbered one, unless the user has typed on since.
+      if (snapshot.title.trim() && result.title !== snapshot.title.trim() && titleRef.current === snapshot.title) setTitle(result.title);
+    }
     return result;
   }, [row.id]);
 
