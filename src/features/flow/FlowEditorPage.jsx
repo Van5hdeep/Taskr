@@ -16,6 +16,8 @@ function LoadedFlow({ row }) {
   const bufferKey = `taskr_unsaved_flow_${row.id}`;
   const history = useDocumentHistory(migrateFlow(row.scene));
   const [title, setTitle] = useState(row.title);
+  const titleRef = useRef(title);
+  titleRef.current = title;
   const [viewport, setViewport] = useState(row.viewport ?? null);
   const updatedAt = useRef(row.updated_at);
   const [recovery, setRecovery] = useState(() => {
@@ -27,7 +29,10 @@ function LoadedFlow({ row }) {
 
   const save = useCallback(async (snapshot, options) => {
     const result = await api.saveFlow(row.id, { title: snapshot.title.trim() || "Untitled flow", scene: snapshot.scene, viewport: snapshot.viewport, diagram_type: snapshot.scene.diagramType ?? "blank" }, updatedAt.current, options);
-    if (!result.conflict) updatedAt.current = result.updated_at;
+    if (!result.conflict) {
+      updatedAt.current = result.updated_at;
+      if (snapshot.title.trim() && result.title !== snapshot.title.trim() && titleRef.current === snapshot.title) setTitle(result.title);
+    }
     return result;
   }, [row.id]);
 

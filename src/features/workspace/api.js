@@ -1,8 +1,16 @@
 import { supabase } from "../../lib/supabase";
+import { uniqueTitle } from "../../lib/uniqueTitle";
 import { emptyContent, uid } from "./model";
 
 const BUCKET = "workspace-assets";
 const LIST_COLUMNS = "id, title, page_style, pinned, archived_at, created_at, updated_at";
+
+/** A title no other document uses; a taken one silently gets (1), (2)… */
+async function resolveTitle(title, excludeId) {
+  const { data } = await supabase.from("documents").select("id, title");
+  return uniqueTitle(title, (data ?? []).filter((row) => row.id !== excludeId).map((row) => row.title));
+}
+
 
 export async function listDocuments({ archived = false } = {}) {
   let query = supabase.from("documents").select(LIST_COLUMNS);
@@ -19,13 +27,14 @@ export async function getDocument(id) {
 }
 
 export async function createDocument({ title = "Untitled document", content = emptyContent(), pageStyle = "plain" } = {}) {
-  const { data, error } = await supabase.from("documents").insert({ title, content, page_style: pageStyle }).select().single();
+  const { data, error } = await supabase.from("documents").insert({ title: await resolveTitle(title), content, page_style: pageStyle }).select().single();
   if (error) throw error;
   return data;
 }
 
 /** Metadata changes (title, pin, archive) — no conflict check. */
 export async function updateDocumentMeta(id, patch) {
+  if (typeof patch.title === "string") patch = { ...patch, title: await resolveTitle(patch.title, id) };
   const { data, error } = await supabase.from("documents").update(patch).eq("id", id).select(LIST_COLUMNS).single();
   if (error) throw error;
   return data;
@@ -36,9 +45,10 @@ export async function updateDocumentMeta(id, patch) {
  * Returns the new row, or { conflict: true } when the stored version is newer.
  */
 export async function saveDocument(id, patch, expectedUpdatedAt, { force = false } = {}) {
+  if (typeof patch.title === "string") patch = { ...patch, title: await resolveTitle(patch.title, id) };
   let query = supabase.from("documents").update(patch).eq("id", id);
   if (!force && expectedUpdatedAt) query = query.eq("updated_at", expectedUpdatedAt);
-  const { data, error } = await query.select("id, updated_at").maybeSingle();
+  const { data, error } = await query.select("id, title, updated_at").maybeSingle();
   if (error) throw error;
   if (!data) return { conflict: true };
   return data;

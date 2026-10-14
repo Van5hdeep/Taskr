@@ -1,7 +1,15 @@
 import { supabase } from "../../lib/supabase";
+import { uniqueTitle } from "../../lib/uniqueTitle";
 import { emptyScene } from "./model";
 
 const LIST_COLUMNS = "id, title, diagram_type, pinned, archived_at, created_at, updated_at";
+
+/** A title no other flow uses; a taken one silently gets (1), (2)… */
+async function resolveTitle(title, excludeId) {
+  const { data } = await supabase.from("flows").select("id, title");
+  return uniqueTitle(title, (data ?? []).filter((row) => row.id !== excludeId).map((row) => row.title));
+}
+
 
 export async function listFlows({ archived = false } = {}) {
   let query = supabase.from("flows").select(LIST_COLUMNS);
@@ -18,12 +26,13 @@ export async function getFlow(id) {
 }
 
 export async function createFlow({ title = "Untitled flow", scene = emptyScene(), diagramType = scene.diagramType ?? "blank" } = {}) {
-  const { data, error } = await supabase.from("flows").insert({ title, scene, diagram_type: diagramType }).select().single();
+  const { data, error } = await supabase.from("flows").insert({ title: await resolveTitle(title), scene, diagram_type: diagramType }).select().single();
   if (error) throw error;
   return data;
 }
 
 export async function updateFlowMeta(id, patch) {
+  if (typeof patch.title === "string") patch = { ...patch, title: await resolveTitle(patch.title, id) };
   const { data, error } = await supabase.from("flows").update(patch).eq("id", id).select(LIST_COLUMNS).single();
   if (error) throw error;
   return data;
@@ -31,9 +40,10 @@ export async function updateFlowMeta(id, patch) {
 
 /** Saves only if nobody saved since `expectedUpdatedAt`; otherwise returns { conflict: true }. */
 export async function saveFlow(id, patch, expectedUpdatedAt, { force = false } = {}) {
+  if (typeof patch.title === "string") patch = { ...patch, title: await resolveTitle(patch.title, id) };
   let query = supabase.from("flows").update(patch).eq("id", id);
   if (!force && expectedUpdatedAt) query = query.eq("updated_at", expectedUpdatedAt);
-  const { data, error } = await query.select("id, updated_at").maybeSingle();
+  const { data, error } = await query.select("id, title, updated_at").maybeSingle();
   if (error) throw error;
   return data ?? { conflict: true };
 }
